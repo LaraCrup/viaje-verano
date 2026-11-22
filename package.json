@@ -1,0 +1,38 @@
+{
+  "name": "viaje-2026",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "typecheck": "nuxt typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:db": "SUPABASE_TEST_URL=http://127.0.0.1:55421 SUPABASE_TEST_KEY=sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH vitest run tests/db"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.119.2",
+    "@tailwindcss/vite": "^4.3.5",
+    "canvas-confetti": "^1.9.4",
+    "dexie": "^4.4.7",
+    "nuxt": "^4.6.4",
+    "tailwindcss": "^4.3.5",
+    "vue": "^3.5.46",
+    "vue-router": "^5.5.1"
+  },
+  "devDependencies": {
+    "@nuxt/fonts": "^1.2.0",
+    "@playwright/test": "^1.65.1",
+    "@types/canvas-confetti": "^1.9.0",
+    "@vite-pwa/assets-generator": "^2.0.0",
+    "@vite-pwa/nuxt": "^2.0.3",
+    "fake-indexeddb": "^6.2.8",
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.1",
+    "vue-tsc": "^3.3.14"
+  }
+}
