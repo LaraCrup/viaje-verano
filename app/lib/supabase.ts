@@ -6,7 +6,9 @@ export function sb(): SupabaseClient {
   if (!client) {
     const cfg = useRuntimeConfig().public
     if (!cfg.supabaseUrl || !cfg.supabaseKey) {
-      throw new Error('Faltan NUXT_PUBLIC_SUPABASE_URL y NUXT_PUBLIC_SUPABASE_KEY en el .env')
+      // En la consola queda claro qué falta (en Vercel: Settings → Environment Variables).
+      console.error('Falta configurar NUXT_PUBLIC_SUPABASE_URL y NUXT_PUBLIC_SUPABASE_KEY (.env o variables del hosting).')
+      throw new Error('Faltan NUXT_PUBLIC_SUPABASE_URL y NUXT_PUBLIC_SUPABASE_KEY')
     }
     client = createClient(cfg.supabaseUrl, cfg.supabaseKey, {
       auth: {

@@ -16,9 +16,15 @@ const switching = ref(false)
 
 const currentName = computed(() => trip.value?.members.find(m => m.id === session.value?.memberId)?.name)
 
-onMounted(async () => {
+const loadingTrip = ref(true)
+const online = ref(true)
+async function loadTrip() {
+  loadingTrip.value = true
+  online.value = navigator.onLine
   trip.value = await fetchPublicTrip()
-})
+  loadingTrip.value = false
+}
+onMounted(loadTrip)
 
 async function submitPin() {
   if (!selected.value) return
@@ -91,7 +97,12 @@ function go() {
     <form v-else class="card tape mt-2" @submit.prevent="submitPin">
       <h2 class="mb-3">¿Quién sos?</h2>
       <div v-if="!trip" class="text-[15px] text-ink-soft">
-        Necesitás conexión para entrar la primera vez. Conectate a wifi o datos y volvé a abrir la app.
+        <p v-if="loadingTrip">Cargando…</p>
+        <template v-else>
+          <p v-if="!online">Necesitás conexión para entrar la primera vez. Conectate a wifi o datos y volvé a intentar.</p>
+          <p v-else>No pude conectarme con el viaje. Probá de nuevo en un momento; si sigue igual, avisale a Lara.</p>
+          <button type="button" class="btn btn-secondary btn-block mt-3" @click="loadTrip">Reintentar</button>
+        </template>
       </div>
       <div v-else class="grid grid-cols-2 gap-2">
         <button
