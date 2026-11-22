@@ -1,4 +1,4 @@
-# Viaje 2026 · Israel · Madrid · Niza · Roma
+# Viaje Taglit · Israel · Madrid · Niza · Roma
 
 App del viaje (21/12/2026 → 14/01/2027) para las 6. Tiene itinerario, traslados, alojamientos, gastos compartidos, planes con votaciones, listas, info por país, diario y un Wrapped al final.
 
@@ -47,7 +47,7 @@ npm run dev
 1. Pasales el link de la app y el PIN del grupo por privado.
 2. Cada una abre la app, toca su nombre y pone el PIN (distingue mayúsculas de minúsculas).
 3. Queda guardado en el celular: la próxima vez entra directo, aunque no tenga señal.
-5. Cada una instala la app: en iPhone, **Compartir → Agregar a inicio**; en Android, **⋮ → Instalar app**. Instalada, el celular no borra los datos guardados.
+4. Cada una la agrega a la pantalla de inicio del iPhone: **Compartir → Agregar a inicio**. Así abre como una app y el celular no borra los datos guardados.
 
 ---
 

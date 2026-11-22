@@ -138,7 +138,6 @@ function install() {
     <section v-if="!isStandalone" class="card">
       <h2>Instalar la app</h2>
       <p class="mt-1 text-[15px]"><strong>iPhone (Safari):</strong> botón Compartir → “Agregar a inicio”.</p>
-      <p class="mt-1 text-[15px]"><strong>Android (Chrome):</strong> menú ⋮ → “Instalar app”.</p>
       <p class="mt-1 text-[14px] text-ink-soft">Instalada, el celular no borra los datos guardados y abre a pantalla completa.</p>
       <button v-if="canPrompt" type="button" class="btn btn-secondary btn-block mt-3" @click="install">Instalar ahora</button>
     </section>

@@ -1,6 +1,6 @@
 import tailwindcss from '@tailwindcss/vite'
 
-const APP_NAME = 'Viaje 2026'
+const APP_NAME = 'Viaje Taglit'
 const PAPER = '#FBF5EC'
 
 export default defineNuxtConfig({
@@ -64,7 +64,7 @@ export default defineNuxtConfig({
     registerType: 'autoUpdate',
     manifest: {
       name: APP_NAME,
-      short_name: 'Viaje',
+      short_name: APP_NAME,
       description: 'Itinerario, traslados, alojamientos y gastos compartidos del viaje.',
       lang: 'es-AR',
       start_url: '/',
