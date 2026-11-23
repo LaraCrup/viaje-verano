@@ -58,6 +58,7 @@ npm run dev
 - Los montos son enteros en unidades menores (`bigint`): no se usan floats en ningún paso.
 - Los horarios se guardan en UTC (`timestamptz`) junto con la zona IANA del lugar.
 - Cada gasto es una sola fila. Quién pagó (`payers`) y cómo se dividió (`shares`) van en `jsonb`, así se guarda y sincroniza todo junto. Un trigger valida que lo pagado y lo dividido sumen el total.
+- Cada etapa (capítulo) tiene quiénes van (`chapters.member_ids`; vacío = todas). A cada una se le ocultan las etapas donde no está (días, traslados, alojamientos, planes, votaciones, diario, info por país y gastos donde no participa) y los gastos nuevos se dividen entre las que van a esa etapa. Los balances usan todos los gastos. Es lo que se muestra, no un permiso de la base. Se edita tocando los avatares de cada etapa en Itinerario.
 - Los borrados son lógicos (`deleted_at`). `activity_log` guarda quién hizo cada cambio y cómo estaba antes, y se puede volver a una versión anterior desde la app.
 
 ### Seguridad

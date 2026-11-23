@@ -4,6 +4,7 @@ import { formatMoney } from '#shared/money/currency'
 import { formatDayLong } from '#shared/time/tz'
 
 const { data, me, placeById, partyName } = useTripData()
+const scope = useScope()
 const { currencies, statsByCurrency } = useLedger()
 
 // Filtros (se recuerdan en este celular)
@@ -24,14 +25,14 @@ function clearFilters() {
   Object.assign(filters, { member: '', category: '', currency: '', place: '' })
 }
 
-const places = computed(() => [...new Set(data.expenses.map(e => e.place_id).filter(Boolean) as string[])].map(id => placeById.value.get(id)).filter(Boolean))
+const places = computed(() => [...new Set(scope.expenses.value.map(e => e.place_id).filter(Boolean) as string[])].map(id => placeById.value.get(id)).filter(Boolean))
 
 type Item =
   | { kind: 'expense'; id: string; date: string; e: (typeof data.expenses)[number] }
   | { kind: 'settlement'; id: string; date: string; s: (typeof data.settlements)[number] }
 
 const items = computed<Item[]>(() => {
-  const exps = data.expenses.filter(e => {
+  const exps = scope.expenses.value.filter(e => {
     if (filters.member && !(filters.member in e.payers) && !(filters.member in e.shares)) return false
     if (filters.category && e.category !== filters.category) return false
     if (filters.currency && e.currency !== filters.currency) return false
@@ -63,6 +64,11 @@ const groupTotals = computed(() =>
     .map(x => formatMoney(x.v, x.c))
     .join(' · '),
 )
+
+/** ¿Participa la integrante de este celular? (pagó algo o le toca una parte) */
+function mine(e: { payers: Record<string, number>; shares: Record<string, number> }) {
+  return !me.value || me.value.id in e.payers || (e.shares[me.value.id] ?? 0) > 0
+}
 
 function payersLabel(p: Record<string, number>) {
   const ids = Object.keys(p)
@@ -99,10 +105,20 @@ function payersLabel(p: Record<string, number>) {
       <h2 class="eyebrow mb-2 px-1 font-sans first-letter:uppercase">{{ formatDayLong(g.date) }}</h2>
       <ul class="card divide-y divide-line/70 px-3 py-0">
         <li v-for="it in g.items" :key="it.id">
-          <NuxtLink v-if="it.kind === 'expense'" :to="`/gastos/${it.id}`" class="flex items-center gap-3 py-2.5">
-            <span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-paper-2 text-[20px]" aria-hidden="true">{{ category(it.e.category).emoji }}</span>
+          <!-- Los gastos donde no participás (ni pagaste ni te toca parte) quedan en segundo plano -->
+          <NuxtLink
+            v-if="it.kind === 'expense'"
+            :to="`/gastos/${it.id}`"
+            class="flex items-center gap-3"
+            :class="mine(it.e) ? 'py-2.5' : 'py-2 opacity-55'"
+          >
+            <span
+              class="grid shrink-0 place-items-center rounded-full bg-paper-2"
+              :class="mine(it.e) ? 'h-10 w-10 text-[20px]' : 'h-8 w-8 text-[16px] grayscale'"
+              aria-hidden="true"
+            >{{ category(it.e.category).emoji }}</span>
             <div class="min-w-0 flex-1">
-              <p class="truncate text-[15px] font-semibold">{{ it.e.description }}</p>
+              <p class="truncate" :class="mine(it.e) ? 'text-[15px] font-semibold' : 'text-[14px]'">{{ it.e.description }}</p>
               <p class="truncate text-[13px] text-ink-soft">
                 {{ payersLabel(it.e.payers) }}
                 <template v-if="it.e.split_mode === 'personal'"> · personal</template>
@@ -110,8 +126,9 @@ function payersLabel(p: Record<string, number>) {
               </p>
             </div>
             <div class="shrink-0 text-right">
-              <p class="text-[15px] font-bold tabular">{{ formatMoney(it.e.amount_minor, it.e.currency) }}</p>
+              <p class="tabular" :class="mine(it.e) ? 'text-[15px] font-bold' : 'text-[14px] font-semibold'">{{ formatMoney(it.e.amount_minor, it.e.currency) }}</p>
               <p v-if="me && it.e.shares[me.id]" class="text-[13px] text-ink-soft tabular">vos {{ formatMoney(it.e.shares[me.id]!, it.e.currency) }}</p>
+              <p v-else-if="!mine(it.e)" class="text-[12px] text-ink-soft">no participás</p>
             </div>
           </NuxtLink>
           <NuxtLink v-else :to="`/gastos/pago?id=${it.id}`" class="flex min-h-12 items-center gap-3 py-2 text-ink-soft">

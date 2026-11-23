@@ -1,8 +1,31 @@
 <script setup lang="ts">
+import type { Chapter } from '#shared/types/domain'
 import { formatDayShort } from '#shared/time/tz'
 
 const { chapters, transportsByDate, plansByDay, nightLabel } = useItinerary()
+const { data } = useTripData()
 const { today } = useNow()
+const { show } = useToast()
+
+// Quiénes van a cada etapa: se toca la fila de avatares y se elige
+const whoOpen = ref(false)
+const whoChapter = ref<Chapter | null>(null)
+const whoIds = ref<string[]>([])
+function openWho(c: Chapter) {
+  whoChapter.value = c
+  whoIds.value = c.member_ids?.length ? [...c.member_ids] : data.members.map(m => m.id)
+  whoOpen.value = true
+}
+async function saveWho() {
+  const c = whoChapter.value
+  if (!c) return
+  if (!whoIds.value.length) return show('Tiene que ir al menos una', 'warn')
+  // Si van todas, se guarda vacío (así una integrante nueva también queda incluida)
+  const all = data.members.every(m => whoIds.value.includes(m.id))
+  await saveRow('chapters', { ...c, member_ids: all ? null : data.members.map(m => m.id).filter(id => whoIds.value.includes(id)) })
+  whoOpen.value = false
+  show(`Listo: ${c.name} ✓`)
+}
 
 /** Días que ya pasaron: se muestran resumidos para que resalte lo que viene. */
 function doneCount(dayId: string) {
@@ -24,13 +47,17 @@ onMounted(() => {
       <NuxtLink to="/alojamientos" class="chip shrink-0"><NavIcon name="bed" :size="18" /> Alojamientos</NuxtLink>
     </nav>
 
-    <section v-for="{ chapter, days } in chapters" :key="chapter.id" class="mb-7">
+    <section v-for="{ chapter, days, members } in chapters" :key="chapter.id" class="mb-7">
       <div class="relative mb-3 flex items-center gap-3 rounded-[20px] px-4 py-3 shadow-[0_10px_24px_-14px_rgb(47_24_71/0.6)]" :style="{ background: chapter.color, color: textOn(chapter.color) }">
         <span class="text-[26px]" aria-hidden="true">{{ chapter.emoji }}</span>
-        <div>
+        <div class="min-w-0 flex-1">
           <h2>{{ chapter.name }}</h2>
           <p class="text-[13px] font-semibold opacity-90">{{ formatDayShort(chapter.start_date) }} → {{ formatDayShort(chapter.end_date) }}</p>
         </div>
+        <!-- Quiénes van: se toca para cambiar -->
+        <button type="button" class="relative z-10 flex min-h-11 shrink-0 items-center -space-x-2 rounded-full pl-1 pr-1" :aria-label="`Quiénes van a ${chapter.name}: ${members.map(m => m.name).join(', ')}. Tocá para cambiar.`" @click="openWho(chapter)">
+          <MemberAvatar v-for="m in members" :key="m.id" :member="m" :size="26" />
+        </button>
         <span class="absolute -top-2 right-6 h-5 w-16 rotate-6 rounded-sm opacity-90" :style="{ background: chapter.accent }" aria-hidden="true" />
       </div>
 
@@ -72,5 +99,13 @@ onMounted(() => {
         </li>
       </ol>
     </section>
+
+    <BottomSheet v-model:open="whoOpen" :title="`¿Quiénes van a ${whoChapter?.name ?? ''}?`">
+      <form class="space-y-4" @submit.prevent="saveWho">
+        <MemberPicker v-model="whoIds" :members="data.members" multiple label="Tocá para sacar o sumar" />
+        <p class="text-[13px] text-ink-soft">Las que no van no ven esta etapa (días, traslados, alojamientos, planes, votaciones ni gastos) y los gastos de acá se dividen solo entre las que van.</p>
+        <button type="submit" class="btn btn-primary btn-block">Guardar</button>
+      </form>
+    </BottomSheet>
   </div>
 </template>

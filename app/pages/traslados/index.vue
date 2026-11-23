@@ -1,8 +1,8 @@
 <script setup lang="ts">
-const { data } = useTripData()
+const { transports } = useScope()
 const { now } = useNow()
-const upcoming = computed(() => data.transports.filter(t => !t.depart_at || new Date(t.arrive_at ?? t.depart_at) >= now.value))
-const past = computed(() => data.transports.filter(t => t.depart_at && new Date(t.arrive_at ?? t.depart_at) < now.value))
+const upcoming = computed(() => transports.value.filter(t => !t.depart_at || new Date(t.arrive_at ?? t.depart_at) >= now.value))
+const past = computed(() => transports.value.filter(t => t.depart_at && new Date(t.arrive_at ?? t.depart_at) < now.value))
 </script>
 
 <template>

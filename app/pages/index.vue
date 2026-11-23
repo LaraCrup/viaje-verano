@@ -3,27 +3,30 @@ import { stayForNight, tripPhase } from '#shared/time/trip'
 import { formatDayLong, formatTime, TZ } from '#shared/time/tz'
 
 const { data, me, dayByDate, chapterForDate, placeForDate } = useTripData()
+const scope = useScope()
 const { now, today } = useNow()
 
 const trip = computed(() => data.trip)
-const phase = computed(() => (trip.value ? tripPhase(today.value, trip.value.start_date, trip.value.end_date) : null))
+// El viaje de cada una va de su primera a su última etapa (Meli termina en Israel, Solcha en Niza)
+const span = computed(() => scope.window.value)
+const phase = computed(() => (span.value ? tripPhase(today.value, span.value.start, span.value.end) : null))
 const day = computed(() => dayByDate.value.get(today.value) ?? null)
 const chapter = computed(() => chapterForDate(today.value))
 // Antes del viaje: el clima y la hora del primer destino (Buenos Aires); después, el del último.
 const place = computed(() => {
-  const t = trip.value
-  if (!t) return null
-  const d = today.value < t.start_date ? t.start_date : today.value > t.end_date ? t.end_date : today.value
+  const w = span.value
+  if (!w) return null
+  const d = today.value < w.start ? w.start : today.value > w.end ? w.end : today.value
   return placeForDate(d)
 })
 const localTz = computed(() => place.value?.tz ?? Intl.DateTimeFormat().resolvedOptions().timeZone)
 const weekday = computed(() => now.value.getDay())
 
-const tonightStay = computed(() => stayForNight(today.value, data.stays))
+const tonightStay = computed(() => stayForNight(today.value, scope.stays.value))
 const nextTransport = computed(() =>
-  data.transports.find(t => t.status !== 'cancelled' && t.depart_at && new Date(t.arrive_at ?? t.depart_at) > now.value) ?? null,
+  scope.transports.value.find(t => t.status !== 'cancelled' && t.depart_at && new Date(t.arrive_at ?? t.depart_at) > now.value) ?? null,
 )
-const todayPlans = computed(() => (day.value ? data.plans.filter(p => p.day_id === day.value!.id) : []))
+const todayPlans = computed(() => (day.value ? scope.plans.value.filter(p => p.day_id === day.value!.id) : []))
 
 const { weather } = useWeather(place)
 const ready = computed(() => data.loaded && !!data.trip)
@@ -31,10 +34,10 @@ const ready = computed(() => data.loaded && !!data.trip)
 /** Primer destino real del viaje (el primer capítulo fuera de casa: Israel, no "Ida"). */
 const firstDestination = computed(() => {
   const home = trip.value?.home_tz
-  return data.chapters.find(c => {
+  return scope.chapters.value.find(c => {
     const pl = c.place_id ? data.places.find(p => p.id === c.place_id) : null
     return pl && pl.tz !== home
-  }) ?? data.chapters[0] ?? null
+  }) ?? scope.chapters.value[0] ?? null
 })
 
 /** "Madrid · a la noche vuelo a Niza" → "a la noche vuelo a Niza" (la ciudad ya está arriba). */

@@ -10,6 +10,7 @@ definePageMeta({ layout: false })
 
 const router = useRouter()
 const { data, memberById, placeById } = useTripData()
+const scope = useScope()
 const { currencies, statsByCurrency } = useLedger()
 
 // Sin convertir: el total del grupo va por moneda ("1.200,00 EUR · 3.400,00 ILS").
@@ -28,20 +29,20 @@ const timesPaid = computed(() => {
 })
 const catCount = computed(() => {
   const out: Record<string, number> = {}
-  for (const e of data.expenses) if (e.split_mode !== 'personal') out[e.category] = (out[e.category] ?? 0) + 1
+  for (const e of scope.expenses.value) if (e.split_mode !== 'personal') out[e.category] = (out[e.category] ?? 0) + 1
   return out
 })
 const { show } = useToast()
 
 const places = computed(() => placeById.value as Map<string, any>)
-const v = computed(() => visited(data.days, places.value))
-const km = computed(() => totalKm(data.transports, places.value))
+const v = computed(() => visited(scope.days.value, places.value))
+const km = computed(() => totalKm(scope.transports.value, places.value))
 const memberIds = computed(() => new Set(data.members.map(m => m.id)))
 const topCat = computed(() => topEntry(catCount.value))
 const topPayer = computed(() => topEntry(timesPaid.value, memberIds.value))
 const rankingPaid = computed(() => ranked(timesPaid.value).filter(([k]) => memberIds.value.has(k)))
 const fiercest = computed(() => {
-  const list = data.polls.map(poll => ({
+  const list = scope.polls.value.map(poll => ({
     poll,
     tally: tally(data.poll_options.filter(o => o.poll_id === poll.id).map(o => o.id), data.poll_votes.filter(x => x.poll_id === poll.id)),
   }))
@@ -51,7 +52,7 @@ const fiercest = computed(() => {
   const opts = data.poll_options.filter(o => o.poll_id === p.id)
   return { poll: p, t, opts }
 })
-const photos = computed(() => data.journal_entries.filter(j => !j.member_id && j.photo_path).slice(0, 6))
+const photos = computed(() => scope.journal.value.filter(j => !j.member_id && j.photo_path).slice(0, 6))
 
 type Slide = { id: string; bg: string; fg?: string }
 const slides = computed<Slide[]>(() => {
@@ -105,7 +106,7 @@ async function exportImage() {
   for (let x = 0; x < W; x += 54) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke() }
   for (let y = 0; y < H; y += 54) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke() }
   // Cintas de colores de los capítulos
-  data.chapters.forEach((ch, k) => {
+  scope.chapters.value.forEach((ch, k) => {
     g.save()
     g.translate(140 + k * 200, 120)
     g.rotate((k % 2 ? 4 : -4) * Math.PI / 180)
@@ -193,7 +194,7 @@ async function exportImage() {
         </template>
         <template v-else-if="current.id === 'intro'">
           <Sticker name="plane" :size="96" animate />
-          <h1 class="text-[20px] text-white">25 días. 6 amigas.</h1>
+          <h1 class="text-[20px] text-white">{{ scope.days.value.length }} días. {{ data.members.length }} amigas.</h1>
           <p class="text-[16px] opacity-95">Esto fue nuestro viaje en números.</p>
         </template>
 
@@ -213,7 +214,7 @@ async function exportImage() {
         <template v-else-if="current.id === 'gasto'">
           <Sticker name="heart" :size="80" animate />
           <h1 class="text-[20px] text-white tabular">{{ groupTotals }}</h1>
-          <p class="text-[16px] opacity-95">gastados entre todas, en {{ data.expenses.length }} gastos.</p>
+          <p class="text-[16px] opacity-95">gastados entre todas, en {{ scope.expenses.value.length }} gastos.</p>
         </template>
 
         <template v-else-if="current.id === 'categoria' && topCat">

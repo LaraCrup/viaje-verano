@@ -29,7 +29,13 @@ const SECTION: Record<string, { icon: string; bg: string }> = {
 }
 const sectionStyle = (s: string) => SECTION[s] ?? { icon: '📌', bg: 'var(--color-paper-2)' }
 
+// Solo los países de sus etapas (a Meli: Israel, y España por la escala en Madrid)
+const scope = useScope()
+const countries = computed(() => COUNTRIES.filter(c => scope.countries.value.has(c.code)))
 const country = ref(CHAPTER_COUNTRY[chapterForDate(today.value)?.name ?? ''] ?? 'IL')
+watch(countries, list => {
+  if (list.length && !list.some(c => c.code === country.value)) country.value = list[0]!.code
+}, { immediate: true })
 const items = computed(() => data.country_info.filter(i => i.country === country.value))
 const pendingCount = computed(() => items.value.filter(i => i.needs_check).length)
 
@@ -74,7 +80,7 @@ async function addSection() {
   <div>
     <PageHeader title="Info útil" back="/mas" sticker="sun" />
     <div class="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4" role="tablist" aria-label="País">
-      <button v-for="c in COUNTRIES" :key="c.code" type="button" role="tab" class="chip shrink-0" :class="country === c.code ? 'is-on' : ''" :aria-selected="country === c.code" @click="country = c.code; editing = null">{{ c.flag }} {{ c.name }}</button>
+      <button v-for="c in countries" :key="c.code" type="button" role="tab" class="chip shrink-0" :class="country === c.code ? 'is-on' : ''" :aria-selected="country === c.code" @click="country = c.code; editing = null">{{ c.flag }} {{ c.name }}</button>
     </div>
 
     <p v-if="pendingCount" class="mb-4 rounded-xl bg-warn-soft px-3 py-2 text-[14px] text-warn">

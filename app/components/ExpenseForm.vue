@@ -19,10 +19,9 @@ const { today } = useNow()
 const { show } = useToast()
 const { tripId } = useSession()
 
+const scope = useScope()
 const e = props.expense
 const id = e?.id ?? uuid()
-const members = computed(() => data.members)
-const allIds = computed(() => members.value.map(m => m.id))
 
 // ---- Estado del formulario ----
 const amountText = ref(e ? formatPlain(e.amount_minor, e.currency) : '')
@@ -32,6 +31,14 @@ const description = ref(e?.description ?? props.preset?.description ?? '')
 // Sin categoría por defecto en un gasto nuevo: hay que elegirla (sirve para los números).
 const cat = ref<string>(e?.category ?? props.preset?.category ?? '')
 const date = ref(e?.date ?? props.preset?.date ?? today.value)
+
+// Quiénes aparecen: las que van a la etapa de la fecha del gasto (más las que ya estaban en el gasto, si se edita)
+const members = computed(() => {
+  const ids = new Set(scope.membersOnDate(date.value).map(m => m.id))
+  for (const k of [...Object.keys(e?.payers ?? {}), ...Object.keys(e?.shares ?? {})]) ids.add(k)
+  return data.members.filter(m => ids.has(m.id))
+})
+const allIds = computed(() => members.value.map(m => m.id))
 const note = ref(e?.note ?? '')
 const receiptPath = ref<string | null>(e?.receipt_path ?? null)
 const showMore = ref(!!(e && (e.note || e.receipt_path || e.date !== today.value)))
@@ -54,9 +61,11 @@ if (e && ['exact', 'percent', 'shares'].includes(e.split_mode)) {
 }
 
 
-// Si no hay miembros todavía al montar (primer render), completar.
-watch(allIds, ids => {
-  if (!e && included.value.length === 0) included.value = [...ids]
+// Si no había integrantes al montar (primer render), completar. En un gasto nuevo, si cambia la
+// fecha a otra etapa y la división no se tocó, se divide entre las que van a esa etapa.
+const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every(x => b.includes(x))
+watch(allIds, (ids, old) => {
+  if (!e && (included.value.length === 0 || (old && sameSet(included.value, old)))) included.value = [...ids]
   if (!singlePayer.value && me.value) singlePayer.value = me.value.id
   if (!personalOf.value && me.value) personalOf.value = me.value.id
 }, { immediate: true })

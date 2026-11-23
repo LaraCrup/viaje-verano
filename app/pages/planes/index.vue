@@ -7,7 +7,8 @@ import { pairId } from '~/lib/supabase'
 
 const route = useRoute()
 const router = useRouter()
-const { data, me, memberById, chapterById, dayByDate } = useTripData()
+const { data, me, memberById, chapterById, dayByDate, chapterForDate } = useTripData()
+const scope = useScope()
 const { now, today } = useNow()
 const { show } = useToast()
 
@@ -18,7 +19,7 @@ const tab = computed<'ideas' | 'votar'>({
 
 // ---------- Ideas ----------
 const chapterFilter = ref<string>('')
-const ideas = computed(() => data.plans.filter(p => !p.day_id && (!chapterFilter.value || p.chapter_id === chapterFilter.value)))
+const ideas = computed(() => scope.plans.value.filter(p => !p.day_id && (!chapterFilter.value || p.chapter_id === chapterFilter.value)))
 const groupedIdeas = computed(() => {
   const byChapter = new Map<string, Map<string, Plan[]>>()
   for (const p of ideas.value) {
@@ -37,7 +38,7 @@ const groupedIdeas = computed(() => {
     }))
     .sort((a, b) => (a.chapter?.sort ?? 99) - (b.chapter?.sort ?? 99))
 })
-const scheduled = computed(() => data.plans.filter(p => p.day_id).length)
+const scheduled = computed(() => scope.plans.value.filter(p => p.day_id).length)
 
 const ideaOpen = ref(false)
 const ideaForm = reactive({ id: '', title: '', chapter_id: '', group_label: '', notes: '', maps_url: '' })
@@ -83,8 +84,8 @@ const moving = ref<Plan | null>(null)
 const moveDate = ref('')
 const moveDays = computed(() => {
   const c = moving.value?.chapter_id
-  const days = c ? data.days.filter(d => d.chapter_id === c) : data.days
-  return days.length ? days : data.days
+  const days = c ? scope.days.value.filter(d => d.chapter_id === c) : scope.days.value
+  return days.length ? days : scope.days.value
 })
 function openMove(p: Plan) {
   moving.value = p
@@ -107,12 +108,14 @@ function mapsFor(p: Plan) {
 
 // ---------- Votaciones ----------
 const polls = computed(() =>
-  data.polls.map(poll => {
+  scope.polls.value.map(poll => {
     const options = data.poll_options.filter(o => o.poll_id === poll.id)
     const votes = data.poll_votes.filter(v => v.poll_id === poll.id)
     const t = tally(options.map(o => o.id), votes)
     const mine = votes.find(v => v.member_id === me.value?.id)?.option_ids ?? []
-    return { poll, options, votes, t, mine, open: isPollOpen(poll, now.value) }
+    // Cuántas pueden votar: las de la etapa de la votación (o todas, si es de todo el viaje)
+    const voters = scope.membersOfChapter(poll.chapter_id).length
+    return { poll, options, votes, t, mine, voters, open: isPollOpen(poll, now.value) }
   }),
 )
 
@@ -137,9 +140,12 @@ async function removePoll(poll: Poll) {
 }
 
 const pollOpen = ref(false)
-const pollForm = reactive({ question: '', options: ['', ''], multiple: false, closes: '' })
-function openPoll(prefill?: { question: string; options: string[] }) {
-  Object.assign(pollForm, { question: prefill?.question ?? '', options: prefill?.options ?? ['', ''], multiple: false, closes: '' })
+const pollForm = reactive({ question: '', options: ['', ''], multiple: false, closes: '', chapter_id: '' })
+function openPoll(prefill?: { question: string; options: string[]; chapter_id?: string | null }) {
+  // Etapa por defecto: la de las ideas que se votan, o la de hoy (si le toca)
+  const todayChapter = chapterForDate(today.value)?.id
+  const chapter_id = prefill?.chapter_id ?? (todayChapter && scope.chapterOk(todayChapter) ? todayChapter : '')
+  Object.assign(pollForm, { question: prefill?.question ?? '', options: prefill?.options ?? ['', ''], multiple: false, closes: '', chapter_id })
   pollOpen.value = true
 }
 async function savePoll() {
@@ -150,7 +156,7 @@ async function savePoll() {
     multiple: pollForm.multiple,
     closes_at: pollForm.closes ? new Date(pollForm.closes).toISOString() : null,
     closed: false,
-    chapter_id: null,
+    chapter_id: pollForm.chapter_id || null,
   })
   for (const [i, label] of opts.entries()) {
     const plan = data.plans.find(p => p.title.toLowerCase() === label.toLowerCase())
@@ -163,7 +169,7 @@ async function savePoll() {
 
 // Votar entre ideas de un mismo "día posible" (ej. "¿Mónaco o Saint-Tropez?")
 function pollFromGroup(label: string, items: Plan[]) {
-  openPoll({ question: `${label}: ¿qué hacemos?`, options: items.map(p => p.title) })
+  openPoll({ question: `${label}: ¿qué hacemos?`, options: items.map(p => p.title), chapter_id: items[0]?.chapter_id ?? null })
 }
 </script>
 
@@ -182,7 +188,7 @@ function pollFromGroup(label: string, items: Plan[]) {
     <template v-if="tab === 'ideas'">
       <div class="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4" role="radiogroup" aria-label="Ciudad">
         <button type="button" role="radio" class="chip shrink-0" :aria-checked="!chapterFilter" @click="chapterFilter = ''">Todas</button>
-        <button v-for="c in data.chapters" :key="c.id" type="button" role="radio" class="chip shrink-0" :aria-checked="chapterFilter === c.id" @click="chapterFilter = c.id">{{ c.emoji }} {{ c.name }}</button>
+        <button v-for="c in scope.chapters.value" :key="c.id" type="button" role="radio" class="chip shrink-0" :aria-checked="chapterFilter === c.id" @click="chapterFilter = c.id">{{ c.emoji }} {{ c.name }}</button>
       </div>
 
       <p v-if="scheduled" class="mb-1 px-1 text-[13px] text-ink-soft">{{ scheduled }} plan{{ scheduled > 1 ? 'es' : '' }} ya {{ scheduled > 1 ? 'están' : 'está' }} en el itinerario.</p>
@@ -218,13 +224,13 @@ function pollFromGroup(label: string, items: Plan[]) {
     <!-- VOTACIONES -->
     <template v-else>
       <EmptyState v-if="!polls.length" text="No hay votaciones. Armá una: “¿Mónaco o Saint-Tropez?”, “¿dónde cenamos?”." sticker="star" />
-      <section v-for="{ poll, options, t, mine, open } in polls" :key="poll.id" class="card mb-4" :class="open ? '' : 'opacity-80'">
+      <section v-for="{ poll, options, t, mine, voters, open } in polls" :key="poll.id" class="card mb-4" :class="open ? '' : 'opacity-80'">
         <div class="flex items-start justify-between gap-2">
           <h2 class="font-sans text-[16px] font-bold leading-snug">{{ poll.question }}</h2>
           <span class="badge shrink-0" :class="open ? 'badge-ok' : 'bg-paper-2 text-ink-soft'">{{ open ? 'Abierta' : 'Cerrada' }}</span>
         </div>
         <p class="mb-3 mt-0.5 text-[13px] text-ink-soft">
-          {{ t.totalVoters }} de {{ data.members.length }} votaron{{ poll.multiple ? ' · se puede elegir varias' : '' }}
+          {{ t.totalVoters }} de {{ voters }} votaron{{ poll.multiple ? ' · se puede elegir varias' : '' }}
           <template v-if="poll.closes_at && open"> · cierra {{ new Date(poll.closes_at).toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) }}</template>
         </p>
         <ul class="space-y-2">
@@ -268,7 +274,7 @@ function pollFromGroup(label: string, items: Plan[]) {
         <div><label for="i-title" class="field-label">¿Qué?</label><input id="i-title" v-model="ideaForm.title" class="input" required maxlength="120"></div>
         <div>
           <label for="i-chapter" class="field-label">Ciudad / capítulo</label>
-          <select id="i-chapter" v-model="ideaForm.chapter_id" class="input"><option value="">—</option><option v-for="c in data.chapters" :key="c.id" :value="c.id">{{ c.name }}</option></select>
+          <select id="i-chapter" v-model="ideaForm.chapter_id" class="input"><option value="">—</option><option v-for="c in scope.chapters.value" :key="c.id" :value="c.id">{{ c.name }}</option></select>
         </div>
         <div><label for="i-group" class="field-label">Grupo (opcional)</label><input id="i-group" v-model="ideaForm.group_label" class="input" placeholder="ej.: Día 3"></div>
         <div><label for="i-notes" class="field-label">Notas</label><textarea id="i-notes" v-model="ideaForm.notes" class="input" rows="2" /></div>
@@ -296,6 +302,14 @@ function pollFromGroup(label: string, items: Plan[]) {
           <input :id="`v-o-${i}`" v-model="pollForm.options[i]" class="input" maxlength="120">
         </div>
         <button type="button" class="btn btn-ghost px-0" @click="pollForm.options.push('')">+ Otra opción</button>
+        <div>
+          <label for="v-chapter" class="field-label">¿De qué etapa?</label>
+          <select id="v-chapter" v-model="pollForm.chapter_id" class="input">
+            <option value="">Todo el viaje (votan todas)</option>
+            <option v-for="c in scope.chapters.value" :key="c.id" :value="c.id">{{ c.emoji }} {{ c.name }} ({{ scope.membersOfChapter(c.id).length }})</option>
+          </select>
+          <p class="mt-1 text-[12px] text-ink-soft">Solo la ven y la votan las que van a esa etapa.</p>
+        </div>
         <label class="flex min-h-11 items-center gap-3 font-semibold"><input v-model="pollForm.multiple" type="checkbox" class="h-6 w-6 accent-[#c62e65]"> Se puede elegir más de una</label>
         <div><label for="v-close" class="field-label">Cierra (opcional)</label><input id="v-close" v-model="pollForm.closes" type="datetime-local" class="input"></div>
         <button type="submit" class="btn btn-primary btn-block">Crear votación</button>

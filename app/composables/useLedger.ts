@@ -3,6 +3,9 @@
  *
  * Todo va por moneda, sin convertir: las deudas se pagan en la moneda en que
  * se generaron (lo que se pase de una moneda a otra se arregla por fuera).
+ *
+ * Los balances usan TODOS los gastos (para que las cuentas den); los números
+ * (totales, categorías, monedas) usan solo los que le tocan a esta integrante.
  */
 import { balancesByCurrency, type LedgerSettlement } from '#shared/money/balances'
 import { simplifyByCurrency } from '#shared/money/simplify'
@@ -30,6 +33,7 @@ export function toLedgerSettlement(s: Settlement): LedgerSettlement {
 
 export function useLedger() {
   const { data } = useTripData()
+  const scope = useScope()
 
   const expenses = computed(() => data.expenses.map(toLedgerExpense))
   const settlements = computed(() => data.settlements.map(toLedgerSettlement))
@@ -39,16 +43,17 @@ export function useLedger() {
   const transfersByCurrency = computed(() => simplifyByCurrency(byCurrency.value))
   const allSettled = computed(() => Object.values(byCurrency.value).every(b => Object.values(b).every(v => v === 0)))
 
-  /** Monedas usadas en gastos, de la más usada a la menos usada. */
+  /** Monedas usadas en sus gastos, de la más usada a la menos usada. */
   const currencies = computed(() => {
     const count: Record<string, number> = {}
-    for (const e of data.expenses) count[e.currency] = (count[e.currency] ?? 0) + 1
+    for (const e of scope.expenses.value) count[e.currency] = (count[e.currency] ?? 0) + 1
     return Object.keys(count).sort((a, b) => count[b]! - count[a]! || a.localeCompare(b))
   })
 
-  /** Totales y rankings de cada moneda por separado. */
+  /** Totales y rankings de cada moneda por separado (de los gastos que le tocan). */
+  const visibleExpenses = computed(() => scope.expenses.value.map(toLedgerExpense))
   const statsByCurrency = computed<Record<string, TripStats>>(() =>
-    Object.fromEntries(currencies.value.map(c => [c, tripStats(expenses.value.filter(e => e.currency === c), c)])),
+    Object.fromEntries(currencies.value.map(c => [c, tripStats(visibleExpenses.value.filter(e => e.currency === c), c)])),
   )
 
   /** Lo que le deben o debe una persona, una línea por moneda (sin las que están en cero). */

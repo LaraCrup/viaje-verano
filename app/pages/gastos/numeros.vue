@@ -8,13 +8,14 @@ import { SPLIT_LABELS } from '#shared/money/split'
 
 const { data, partyName, placeById, chapterById, memberById } = useTripData()
 const { currencies, statsByCurrency } = useLedger()
+const scope = useScope()
 
 // Moneda que se está mirando: arranca en la más usada.
 const picked = ref('')
 const cur = computed(() => (currencies.value.includes(picked.value) ? picked.value : currencies.value[0] ?? ''))
 const empty = { groupTotal: 0, byMember: {}, byCategory: {}, byPlace: {}, byChapter: {}, timesPaid: {} }
 const stats = computed(() => statsByCurrency.value[cur.value] ?? empty)
-const count = computed(() => data.expenses.filter(e => e.currency === cur.value).length)
+const count = computed(() => scope.expenses.value.filter(e => e.currency === cur.value).length)
 
 function bars(map: Record<string, number>) {
   const list = ranked(map)
@@ -27,7 +28,7 @@ const byMember = computed(() => bars(stats.value.byMember))
 
 function exportCsv() {
   const header = ['Fecha', 'Descripción', 'Categoría', 'Moneda', 'Monto', 'Pagó', 'División', ...data.members.map(m => `Parte ${m.name}`), 'Ciudad', 'Capítulo', 'Nota']
-  const rows = [...data.expenses]
+  const rows = [...scope.expenses.value]
     .sort((a, b) => (a.date < b.date ? -1 : 1))
     .map(e => [
       e.date,

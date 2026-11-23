@@ -1,28 +1,29 @@
 <script setup lang="ts">
 import { formatDayLong } from '#shared/time/tz'
 
-const { data, memberById, chapterById } = useTripData()
+const { memberById, chapterById } = useTripData()
+const scope = useScope()
 const { today } = useNow()
 
 const days = computed(() =>
-  [...data.days]
+  [...scope.days.value]
     .filter(d => d.date <= today.value)
     .reverse()
     .map(d => ({
       day: d,
-      group: data.journal_entries.find(j => j.date === d.date && !j.member_id) ?? null,
-      moments: data.journal_entries.filter(j => j.date === d.date && j.member_id && j.text),
+      group: scope.journal.value.find(j => j.date === d.date && !j.member_id) ?? null,
+      moments: scope.journal.value.filter(j => j.date === d.date && j.member_id && j.text),
     })),
 )
-const next = computed(() => data.days.find(d => d.date > today.value) ?? null)
+const next = computed(() => scope.days.value.find(d => d.date > today.value) ?? null)
 </script>
 
 <template>
   <div>
     <PageHeader title="Diario" back="/mas" sticker="heart" />
 
-    <EmptyState v-if="!days.length" :text="`El diario arranca el primer día de viaje${next ? ` (${formatDayLong(data.days[0]!.date)})` : ''}. Una foto, una frase y el momento del día de cada una.`" sticker="star">
-      <NuxtLink v-if="data.days[0]" :to="`/diario/${data.days[0].date}`" class="btn btn-secondary mt-2">Ver cómo es</NuxtLink>
+    <EmptyState v-if="!days.length" :text="`El diario arranca el primer día de viaje${next ? ` (${formatDayLong(scope.days.value[0]!.date)})` : ''}. Una foto, una frase y el momento del día de cada una.`" sticker="star">
+      <NuxtLink v-if="scope.days.value[0]" :to="`/diario/${scope.days.value[0].date}`" class="btn btn-secondary mt-2">Ver cómo es</NuxtLink>
     </EmptyState>
 
     <article v-for="({ day, group, moments }, idx) in days" :key="day.id" class="mb-8">

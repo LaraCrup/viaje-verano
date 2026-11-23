@@ -6,16 +6,19 @@ import { formatDayLong } from '#shared/time/tz'
 const route = useRoute()
 const date = computed(() => String(route.params.date))
 const { data, dayByDate, chapterById, placeById } = useTripData()
+const scope = useScope()
 const { transportsByDate, plansByDay } = useItinerary()
 const { show } = useToast()
 
-const day = computed(() => dayByDate.value.get(date.value) ?? null)
+// Un día de una etapa donde no está, no se muestra
+const day = computed(() => (scope.dateOk(date.value) ? dayByDate.value.get(date.value) ?? null : null))
 const chapter = computed(() => (day.value?.chapter_id ? chapterById.value.get(day.value.chapter_id) : null))
-const stay = computed(() => stayForNight(date.value, data.stays))
+const stay = computed(() => stayForNight(date.value, scope.stays.value))
 const plans = computed(() => (day.value ? plansByDay.value.get(day.value.id) ?? [] : []))
 const transports = computed(() => transportsByDate.value.get(date.value) ?? [])
-const prev = computed(() => (dayByDate.value.has(addDays(date.value, -1)) ? addDays(date.value, -1) : null))
-const next = computed(() => (dayByDate.value.has(addDays(date.value, 1)) ? addDays(date.value, 1) : null))
+const hasDay = (d: string) => dayByDate.value.has(d) && scope.dateOk(d)
+const prev = computed(() => (hasDay(addDays(date.value, -1)) ? addDays(date.value, -1) : null))
+const next = computed(() => (hasDay(addDays(date.value, 1)) ? addDays(date.value, 1) : null))
 
 // Deslizar de costado para pasar al día anterior / siguiente
 const router = useRouter()
@@ -96,7 +99,7 @@ async function removePlan(p: Plan) {
   <div @touchstart.passive="onTouchStart" @touchend.passive="onTouchEnd">
     <PageHeader :title="formatDayLong(date)" back="/itinerario" :subtitle="chapter ? `${chapter.emoji ?? ''} ${chapter.name}` : undefined" />
 
-    <EmptyState v-if="!day" text="Este día no es parte del viaje." />
+    <EmptyState v-if="!day" text="Este día no es parte de tu viaje." />
 
     <template v-else>
       <section class="card tape" :style="{ '--tape': chapter?.accent }">
@@ -194,7 +197,7 @@ async function removePlan(p: Plan) {
           <div class="min-w-0">
             <label for="p-date" class="field-label">Día</label>
             <select id="p-date" v-model="planForm.date" class="input">
-              <option v-for="d in data.days" :key="d.id" :value="d.date">{{ d.date.slice(8, 10) }}/{{ d.date.slice(5, 7) }}</option>
+              <option v-for="d in scope.days.value" :key="d.id" :value="d.date">{{ d.date.slice(8, 10) }}/{{ d.date.slice(5, 7) }}</option>
             </select>
           </div>
         </div>

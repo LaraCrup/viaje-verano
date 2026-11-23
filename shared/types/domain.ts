@@ -54,6 +54,8 @@ export interface Chapter extends SyncMeta {
   place_id: string | null
   currency: string | null
   sort: number
+  /** Quiénes van a esta etapa. null (o vacío) = todas. */
+  member_ids: string[] | null
 }
 
 export interface Day extends SyncMeta {
