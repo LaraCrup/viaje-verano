@@ -56,14 +56,19 @@ const grouped = computed(() => {
   return out
 })
 
-/** Total del grupo de cada moneda, sin convertir ("1.200,00 EUR · 3.400,00 ILS"). */
-const groupTotals = computed(() =>
-  currencies.value
-    .map(c => ({ c, v: statsByCurrency.value[c]?.groupTotal ?? 0 }))
+/**
+ * Cuánto vas gastando vos en el viaje: tu parte de cada gasto (incluidos los personales),
+ * por moneda y sin convertir ("320,00 EUR · 850,00 ILS").
+ */
+const mySpent = computed(() => {
+  const id = me.value?.id
+  if (!id) return ''
+  return currencies.value
+    .map(c => ({ c, v: statsByCurrency.value[c]?.byMember[id] ?? 0 }))
     .filter(x => x.v > 0)
     .map(x => formatMoney(x.v, x.c))
-    .join(' · '),
-)
+    .join(' · ')
+})
 
 /** ¿Participa la integrante de este celular? (pagó algo o le toca una parte) */
 function mine(e: { payers: Record<string, number>; shares: Record<string, number> }) {
@@ -86,7 +91,7 @@ function payersLabel(p: Record<string, number>) {
       <div class="min-w-0">
         <p class="text-[12px] text-ink-soft">Tu balance</p>
         <MyBalances v-if="me" :member-id="me.id" />
-        <p v-if="groupTotals" class="mt-0.5 text-[13px] text-ink-soft tabular">Total del grupo: {{ groupTotals }}</p>
+        <p v-if="mySpent" class="mt-0.5 text-[13px] text-ink-soft tabular">Vas gastando: {{ mySpent }}</p>
       </div>
       <NavIcon name="chevron" :size="18" class="shrink-0 text-ink-soft" />
     </NuxtLink>

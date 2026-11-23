@@ -42,7 +42,10 @@ export async function enqueue<T extends { id: string; trip_id: string }>(
   const db = getDb()
   const at = (opts.clock ?? nowIso)()
   const local = db.table_(table)
-  const full = { ...row, client_updated_at: at } as T & { client_updated_at: string }
+  // Copia "plana": las filas que vienen de la pantalla son reactivas (Vue) y sus partes anidadas
+  // (quién pagó, cómo se dividió) también; IndexedDB no puede guardar esos proxies (DataCloneError).
+  // Las filas son JSON puro (vienen de la base), así que la copia por JSON no pierde nada.
+  const full = JSON.parse(JSON.stringify({ ...row, client_updated_at: at })) as T & { client_updated_at: string }
 
   await db.transaction('rw', local, db.outbox, async () => {
     const previous = await local.get(row.id)

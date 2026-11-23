@@ -229,6 +229,11 @@ async function remove() {
   emit('deleted')
 }
 
+// Formas de dividir que se ofrecen ("Por partes" no se usa; queda solo si se edita un gasto viejo que la tenía)
+const splitModes = computed(() =>
+  (Object.entries(SPLIT_LABELS) as [SplitMode, string][]).filter(([m]) => m !== 'shares' || mode.value === 'shares'),
+)
+
 const payerOptions = computed(() => members.value.map(m => ({ id: m.id, name: m.name, member: m })))
 </script>
 
@@ -321,7 +326,7 @@ const payerOptions = computed(() => members.value.map(m => ({ id: m.id, name: m.
       <span class="field-label">¿Cómo se divide?</span>
       <div class="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1" role="radiogroup" aria-label="Forma de dividir">
         <button
-          v-for="(label, m) in SPLIT_LABELS"
+          v-for="[m, label] in splitModes"
           :key="m"
           type="button"
           role="radio"
@@ -358,7 +363,7 @@ const payerOptions = computed(() => members.value.map(m => ({ id: m.id, name: m.
               v-model="valuesText[m.id]"
               class="input w-24 text-right tabular"
               inputmode="decimal"
-              :placeholder="mode === 'shares' ? '0' : '0'"
+              placeholder="0"
             >
             <span class="w-10 text-[14px] text-ink-soft">{{ mode === 'percent' ? '%' : mode === 'shares' ? 'partes' : '' }}</span>
           </div>
