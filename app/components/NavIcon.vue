@@ -29,7 +29,9 @@ defineProps<{ name: string; size?: number }>()
       <circle cx="16" cy="13.5" r="1.3" fill="currentColor" />
     </template>
     <template v-else-if="name === 'star'">
-      <path d="m12 3.2 2.6 5.4 5.9.8-4.3 4.1 1.1 5.9L12 16.6l-5.3 2.8 1.1-5.9-4.3-4.1 5.9-.8z" />
+      <!-- Subida 0,6: la estrella tiene casi todo el peso abajo (la punta de arriba es finita),
+           así queda centrada a la vista en la burbuja de la barra y al lado de los títulos -->
+      <path d="m12 2.6 2.6 5.4 5.9.8-4.3 4.1 1.1 5.9L12 16l-5.3 2.8 1.1-5.9-4.3-4.1 5.9-.8z" />
     </template>
     <template v-else-if="name === 'dots'">
       <circle cx="5.5" cy="12" r="1.6" fill="currentColor" />
@@ -54,6 +56,9 @@ defineProps<{ name: string; size?: number }>()
     <template v-else-if="name === 'bed'">
       <path d="M3 18.5V6M3 14h18v4.5M21 14v-2.5c0-1.7-1.3-3-3-3h-7V14" />
       <circle cx="7" cy="10.5" r="1.8" />
+    </template>
+    <template v-else-if="name === 'phone'">
+      <path d="M6.6 3.5h2.6l1.4 4.1-2 1.4a11.5 11.5 0 0 0 6.4 6.4l1.4-2 4.1 1.4v2.6a2 2 0 0 1-2.2 2C10.6 18.8 5.2 13.4 4.6 5.7a2 2 0 0 1 2-2.2z" />
     </template>
     <template v-else-if="name === 'pin'">
       <path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z" />

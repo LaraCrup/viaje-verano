@@ -4,7 +4,6 @@ import { balancesByCurrency, balancesInBase, isAllSettled, type LedgerExpense, t
 import { formatMoney, formatPlain, minorDigits, parseAmount } from './currency'
 import { toCsv } from './csv'
 import { convertMinor, divRound, invertRate, parseRate, rateFromNumber } from './fx'
-import { potSummary, validatePotPayment } from './pots'
 import { simplifyByCurrency, simplifyDebts } from './simplify'
 import { computeExpense, computeSplit, parsePercent, validatePayers } from './split'
 import { tripStats, type StatsExpense } from './stats'
@@ -322,66 +321,6 @@ describe('simplificar deudas', () => {
       }
       expect(isAllSettled(after)).toBe(true)
     }
-  })
-})
-
-describe('caja común', () => {
-  const CAJA = 'caja-eur'
-
-  it('aportes, gastos desde la caja y lo que queda', () => {
-    const aportes: LedgerSettlement[] = AMIGAS.map(a => ({ id: `ap-${a}`, currency: 'EUR', amount: 5000, fxRate: '1.08', fromId: a, toId: CAJA }))
-    const exps = [
-      expense('super', 'EUR', 6000, { [CAJA]: 6000 }, equalAmong(6000, AMIGAS, 'super'), '1.08'),
-      expense('pizza', 'EUR', 3000, { [CAJA]: 3000 }, equalAmong(3000, ['lara', 'juli', 'ivi'], 'pizza'), '1.08'),
-    ]
-    const s = potSummary(CAJA, 'EUR', exps, aportes)
-    expect(s.contributed).toBe(30000)
-    expect(s.spent).toBe(9000)
-    expect(s.remaining).toBe(21000)
-    expect(s.contributedBy.lara).toBe(5000)
-    expect(s.consumedBy.lara).toBe(2000)
-    expect(s.consumedBy.wile).toBe(1000)
-    expect(sum(s.consumedBy)).toBe(9000)
-
-    // En los balances, la caja "debe" lo que le queda adentro
-    const b = balancesByCurrency(exps, aportes).EUR!
-    expect(b[CAJA]).toBe(-21000)
-    expect(sum(b)).toBe(0)
-    // Simplificar = repartir el sobrante: la caja le devuelve a cada una lo suyo
-    const t = simplifyDebts(b)
-    expect(t.every(x => x.from === CAJA)).toBe(true)
-    expect(t.find(x => x.to === 'wile')!.amount).toBe(4000)
-    expect(t.find(x => x.to === 'lara')!.amount).toBe(3000)
-  })
-
-  it('caja que paga una parte y una persona el resto', () => {
-    const aportes: LedgerSettlement[] = [{ id: 'a', currency: 'EUR', amount: 2000, fxRate: '1', fromId: 'lara', toId: CAJA }]
-    const exps = [expense('museo', 'EUR', 5000, { [CAJA]: 2000, juli: 3000 }, { lara: 2500, juli: 2500 })]
-    const s = potSummary(CAJA, 'EUR', exps, aportes)
-    expect(s.remaining).toBe(0)
-    expect(sum(s.consumedBy)).toBe(2000)
-  })
-
-  it('devolver el sobrante deja todo saldado', () => {
-    const aportes: LedgerSettlement[] = [
-      { id: 'a', currency: 'EUR', amount: 3000, fxRate: '1', fromId: 'lara', toId: CAJA },
-      { id: 'b', currency: 'EUR', amount: 3000, fxRate: '1', fromId: 'juli', toId: CAJA },
-    ]
-    const exps = [expense('helado', 'EUR', 2000, { [CAJA]: 2000 }, { lara: 1000, juli: 1000 })]
-    const devoluciones: LedgerSettlement[] = [
-      { id: 'd1', currency: 'EUR', amount: 2000, fxRate: '1', fromId: CAJA, toId: 'lara' },
-      { id: 'd2', currency: 'EUR', amount: 2000, fxRate: '1', fromId: CAJA, toId: 'juli' },
-    ]
-    const all = [...aportes, ...devoluciones]
-    expect(potSummary(CAJA, 'EUR', exps, all).remaining).toBe(0)
-    expect(isAllSettled(balancesByCurrency(exps, all))).toBe(true)
-  })
-
-  it('la caja solo paga en su moneda y si alcanza', () => {
-    const pot = { id: CAJA, currency: 'EUR', remaining: 1000 }
-    expect(validatePotPayment(pot, 'USD', 500).ok).toBe(false)
-    expect(validatePotPayment(pot, 'EUR', 1500).ok).toBe(false)
-    expect(validatePotPayment(pot, 'EUR', 1000).ok).toBe(true)
   })
 })
 

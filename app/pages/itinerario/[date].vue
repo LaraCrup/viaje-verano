@@ -17,6 +17,26 @@ const transports = computed(() => transportsByDate.value.get(date.value) ?? [])
 const prev = computed(() => (dayByDate.value.has(addDays(date.value, -1)) ? addDays(date.value, -1) : null))
 const next = computed(() => (dayByDate.value.has(addDays(date.value, 1)) ? addDays(date.value, 1) : null))
 
+// Deslizar de costado para pasar al día anterior / siguiente
+const router = useRouter()
+let touch: { x: number; y: number } | null = null
+function onTouchStart(e: TouchEvent) {
+  const t = e.target as HTMLElement
+  if (editing.value || t.closest('input, textarea, select, dialog')) return
+  touch = { x: e.touches[0]!.clientX, y: e.touches[0]!.clientY }
+}
+function onTouchEnd(e: TouchEvent) {
+  if (!touch) return
+  const dx = e.changedTouches[0]!.clientX - touch.x
+  const dy = e.changedTouches[0]!.clientY - touch.y
+  touch = null
+  if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.5) return
+  const to = dx < 0 ? next.value : prev.value
+  if (!to) return
+  haptic('light')
+  router.replace(`/itinerario/${to}`)
+}
+
 // Editar el día
 const editing = ref(false)
 const form = reactive({ title: '', notes: '', night_override: '', place_id: '' })
@@ -57,6 +77,7 @@ async function savePlan() {
   show(planForm.date !== date.value ? 'Plan movido de día ✓' : 'Plan guardado ✓')
 }
 async function toggleDone(p: Plan) {
+  haptic('light')
   await saveRow('plans', { ...p, status: p.status === 'done' ? 'pending' : 'done' })
 }
 async function unschedule(p: Plan) {
@@ -72,7 +93,7 @@ async function removePlan(p: Plan) {
 </script>
 
 <template>
-  <div>
+  <div @touchstart.passive="onTouchStart" @touchend.passive="onTouchEnd">
     <PageHeader :title="formatDayLong(date)" back="/itinerario" :subtitle="chapter ? `${chapter.emoji ?? ''} ${chapter.name}` : undefined" />
 
     <EmptyState v-if="!day" text="Este día no es parte del viaje." />
@@ -82,12 +103,12 @@ async function removePlan(p: Plan) {
         <template v-if="!editing">
           <div class="flex items-start justify-between gap-2">
             <div>
-              <p class="text-[18px] font-extrabold">{{ day.title || 'Día libre' }}</p>
-              <p v-if="day.place_id" class="text-[14px] text-ink-soft">📍 {{ placeById.get(day.place_id)?.name }}</p>
+              <p class="text-[17px] font-bold leading-snug">{{ day.title || 'Día libre' }}</p>
+              <p v-if="day.place_id && placeById.get(day.place_id)?.name !== chapter?.name" class="mt-0.5 text-[13px] text-ink-soft">📍 {{ placeById.get(day.place_id)?.name }}</p>
             </div>
-            <button type="button" class="btn btn-secondary min-h-11 px-3" @click="startEdit"><NavIcon name="edit" :size="18" /> Editar</button>
+            <button type="button" class="-mr-1 -mt-1 flex min-h-11 shrink-0 items-center gap-1 rounded-full px-3 text-[14px] font-semibold text-primary-dark hover:bg-paper-2" @click="startEdit"><NavIcon name="edit" :size="16" /> Editar</button>
           </div>
-          <p v-if="day.notes" class="mt-2 whitespace-pre-line text-[15px]">{{ day.notes }}</p>
+          <p v-if="day.notes" class="mt-3 whitespace-pre-line border-t border-dashed border-line pt-3 text-[14px] text-ink-soft">{{ day.notes }}</p>
         </template>
         <form v-else class="space-y-3" @submit.prevent="saveDay">
           <div>
@@ -116,43 +137,46 @@ async function removePlan(p: Plan) {
         </form>
       </section>
 
-      <h2 class="section-title">★ Planes</h2>
-      <ul class="space-y-2">
-        <li v-for="p in plans" :key="p.id" class="card flex items-center gap-2 p-2 pl-3">
+      <h2 class="section-title"><NavIcon name="star" :size="18" /> Planes</h2>
+      <ul v-if="plans.length" class="card divide-y divide-line/70 px-3 py-1">
+        <li v-for="p in plans" :key="p.id" class="flex items-center gap-2 py-2">
           <button type="button" class="tick" :aria-label="p.status === 'done' ? `Marcar ${p.title} como pendiente` : `Marcar ${p.title} como hecho`" :aria-pressed="p.status === 'done'" @click="toggleDone(p)">
-            <NavIcon v-if="p.status === 'done'" name="check" :size="20" />
+            <Transition name="pop"><NavIcon v-if="p.status === 'done'" name="check" :size="20" /></Transition>
           </button>
           <button type="button" class="min-h-11 flex-1 text-left" @click="openPlan(p)">
-            <span v-if="p.start_time" class="mr-1 font-bold text-ink-soft tabular">{{ p.start_time }}</span>
-            <span class="font-bold" :class="p.status === 'done' ? 'line-through opacity-60' : ''">{{ p.title }}</span>
-            <span v-if="p.notes" class="block text-[14px] text-ink-soft">{{ p.notes }}</span>
+            <span v-if="p.start_time" class="block text-[13px] text-ink-soft tabular">{{ p.start_time }}</span>
+            <span class="text-[15px]" :class="p.status === 'done' ? 'text-ink-soft line-through decoration-ink-soft/50' : 'font-semibold'">{{ p.title }}</span>
+            <span v-if="p.notes && p.status !== 'done'" class="block text-[13px] text-ink-soft">{{ p.notes }}</span>
           </button>
           <a :href="p.maps_url || mapsUrl({ query: `${p.title} ${placeById.get(day.place_id ?? '')?.name ?? ''}` })" target="_blank" rel="noopener" class="grid h-11 w-11 place-items-center rounded-full hover:bg-paper-2" :aria-label="`Ver ${p.title} en el mapa`">
-            <NavIcon name="pin" :size="20" />
+            <NavIcon name="pin" :size="18" class="text-ink-soft" />
           </a>
         </li>
       </ul>
-      <button type="button" class="btn btn-secondary btn-block mt-2" @click="openPlan()"><NavIcon name="plus" :size="20" /> Agregar plan</button>
-      <NuxtLink to="/planes" class="link mt-2 inline-block text-[15px]">Traer una idea de la lista de planes</NuxtLink>
+      <p v-else class="px-1 text-[14px] text-ink-soft">Todavía no hay planes para este día.</p>
+      <div class="mt-2 flex items-center gap-3">
+        <button type="button" class="btn btn-secondary flex-1" @click="openPlan()"><NavIcon name="plus" :size="18" /> Agregar plan</button>
+        <NuxtLink to="/planes" class="shrink-0 px-1 text-[14px] font-semibold text-primary-dark">Traer una idea</NuxtLink>
+      </div>
 
-      <h2 class="section-title"><NavIcon name="plane" :size="20" /> Traslados</h2>
+      <h2 class="section-title"><NavIcon name="plane" :size="18" /> Traslados</h2>
       <div class="space-y-2">
         <TransportCard v-for="t in transports" :key="t.id" :t="t" compact />
-        <p v-if="!transports.length" class="text-[15px] text-ink-soft">Ninguno este día.</p>
+        <p v-if="!transports.length" class="px-1 text-[14px] text-ink-soft">Ninguno este día.</p>
       </div>
 
-      <h2 class="section-title"><NavIcon name="bed" :size="20" /> Esta noche</h2>
-      <div v-if="day.night_override" class="card font-bold">{{ day.night_override }}</div>
+      <h2 class="section-title"><NavIcon name="bed" :size="18" /> Esta noche</h2>
+      <div v-if="day.night_override" class="card text-[15px] font-semibold">{{ day.night_override }}</div>
       <StayCard v-else-if="stay" :s="stay" />
       <div v-else class="card">
-        <p class="font-bold text-warn">Sin alojamiento cargado para esta noche.</p>
-        <NuxtLink to="/alojamientos" class="link text-[15px]">Ver alojamientos</NuxtLink>
+        <p class="font-semibold text-warn">Sin alojamiento cargado para esta noche.</p>
+        <NuxtLink to="/alojamientos" class="link text-[14px]">Ver alojamientos</NuxtLink>
       </div>
 
-      <nav class="mt-6 flex justify-between gap-2" aria-label="Otros días">
-        <NuxtLink v-if="prev" :to="`/itinerario/${prev}`" class="btn btn-secondary">← Día anterior</NuxtLink>
+      <nav class="mt-8 flex justify-between gap-2" aria-label="Otros días">
+        <NuxtLink v-if="prev" :to="`/itinerario/${prev}`" class="flex min-h-11 items-center px-1 text-[14px] font-semibold text-primary-dark">← Día anterior</NuxtLink>
         <span v-else />
-        <NuxtLink v-if="next" :to="`/itinerario/${next}`" class="btn btn-secondary">Día siguiente →</NuxtLink>
+        <NuxtLink v-if="next" :to="`/itinerario/${next}`" class="flex min-h-11 items-center px-1 text-[14px] font-semibold text-primary-dark">Día siguiente →</NuxtLink>
       </nav>
     </template>
 
@@ -163,11 +187,11 @@ async function removePlan(p: Plan) {
           <input id="p-title" v-model="planForm.title" class="input" maxlength="120" required>
         </div>
         <div class="grid grid-cols-2 gap-2">
-          <div>
+          <div class="min-w-0">
             <label for="p-time" class="field-label">Hora (opcional)</label>
             <input id="p-time" v-model="planForm.start_time" type="time" class="input">
           </div>
-          <div>
+          <div class="min-w-0">
             <label for="p-date" class="field-label">Día</label>
             <select id="p-date" v-model="planForm.date" class="input">
               <option v-for="d in data.days" :key="d.id" :value="d.date">{{ d.date.slice(8, 10) }}/{{ d.date.slice(5, 7) }}</option>

@@ -17,8 +17,8 @@ async function copy() {
 <template>
   <div class="flex min-h-11 items-center justify-between gap-2 border-b border-dashed border-line py-1 last:border-0">
     <div class="min-w-0">
-      <div class="text-[13px] font-bold text-ink-soft">{{ label }}</div>
-      <div v-if="value" class="truncate font-bold tabular" :class="!revealed ? 'tracking-widest' : ''">
+      <div class="text-[12px] text-ink-soft">{{ label }}</div>
+      <div v-if="value" class="truncate text-[15px] font-semibold tabular" :class="!revealed ? 'tracking-widest' : ''">
         {{ revealed ? value : '••••••' }}
       </div>
       <div v-else class="text-[14px] text-ink-soft">Sin cargar</div>
@@ -28,7 +28,7 @@ async function copy() {
         {{ revealed ? 'Ocultar' : 'Ver' }}
       </button>
       <button type="button" class="grid h-11 w-11 place-items-center rounded-full hover:bg-paper-2" :aria-label="`Copiar ${label}`" @click="copy">
-        <NavIcon name="copy" :size="20" />
+        <NavIcon name="copy" :size="18" class="text-ink-soft" />
       </button>
     </div>
   </div>

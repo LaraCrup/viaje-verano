@@ -19,7 +19,7 @@ Es un PWA (se instala desde el navegador) y funciona sin conexión.
 3. Copiá la **Project URL** y la **Publishable key** desde **Connect** o **Project Settings → API Keys**. Nunca uses la secret key.
 4. Cargá las tablas y los datos con una de estas dos opciones:
    - **Opción A:** pedile a Claude que aplique las migraciones con el conector de Supabase.
-   - **Opción B:** en **SQL Editor**, pegá y corré en orden los archivos de `supabase/migrations/` (`…01_schema`, `…02_security`, `…03_storage_realtime`, `…04_v2`) y al final `supabase/seed.sql`.
+   - **Opción B:** en **SQL Editor**, pegá y corré en orden todos los archivos de `supabase/migrations/` (del `…01_schema` al último) y al final `supabase/seed.sql`.
 5. Poné el PIN del grupo en el **SQL Editor**. Tiene que tener 6 dígitos o más, y nunca va al repo:
    ```sql
    select set_trip_pin('viaje-2026', 'TU_PIN');
@@ -58,7 +58,6 @@ npm run dev
 - Los montos son enteros en unidades menores (`bigint`): no se usan floats en ningún paso.
 - Los horarios se guardan en UTC (`timestamptz`) junto con la zona IANA del lugar.
 - Cada gasto es una sola fila. Quién pagó (`payers`) y cómo se dividió (`shares`) van en `jsonb`, así se guarda y sincroniza todo junto. Un trigger valida que lo pagado y lo dividido sumen el total.
-- La caja común es una "parte" más en los balances: aportar es un pago persona → caja, y un gasto pagado por la caja la tiene como pagadora. "Simplificar deudas" calcula cuánto le devuelve la caja a cada una al final.
 - Los borrados son lógicos (`deleted_at`). `activity_log` guarda quién hizo cada cambio y cómo estaba antes, y se puede volver a una versión anterior desde la app.
 
 ### Seguridad
@@ -89,7 +88,7 @@ tests/e2e       Playwright en iPhone 14 y Pixel 7
 ## Tests
 
 ```bash
-npm test                     # unitarios: gastos, redondeo, caja, deudas, monedas, zonas horarias, sync, votos
+npm test                     # unitarios: gastos, redondeo, deudas, monedas, zonas horarias, sync, votos
 supabase start               # Supabase local (Docker)
 TEST_PIN=123456 npm run test:db     # seguridad de la base (el PIN local se setea con set_trip_pin)
 npm run build && PORT=3200 node .output/server/index.mjs
@@ -99,10 +98,10 @@ E2E_BASE_URL=http://localhost:3200 TEST_PIN=123456 npm run test:e2e
 Para ver cómo queda un día del viaje, abrí `/?fecha=2027-01-06`. Para volver a la fecha real, `/?fecha=hoy`.
 
 ## Datos pendientes (se completan desde la app)
+- Alojamiento de Israel (30/12 → 02/01).
 - Alojamiento de Madrid (02/01 → 05/01).
 - Vuelo de vuelta desde Roma.
 - Horas de llegada de IB1874, IB1217 y del micro a Roma.
-- Noches del 29/12 (fin de Taglit) y del 01/01 (antes del vuelo de las 05:30).
 - Direcciones, horarios de check-in, wifi y códigos de los alojamientos.
 - Itinerario de Taglit (lo carga el programa).
 - Info por país marcada "Falta verificar": emergencias, consulados, transporte y propinas.

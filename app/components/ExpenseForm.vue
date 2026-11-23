@@ -1,23 +1,20 @@
 <script setup lang="ts">
 /**
  * Alta y edición de gastos.
- * Caso común en < 10 s: monto → (moneda) → Guardar. Pagó: yo. Partes iguales entre las 6.
+ * Caso común: monto → (moneda) → categoría → en qué → Guardar. Pagó: yo. Partes iguales entre las 6.
+ * Categoría y descripción son obligatorias para que los números se entiendan después.
  */
-import { CATEGORIES, category as categoryOf } from '#shared/money/categories'
+import { CATEGORIES } from '#shared/money/categories'
 import { DEFAULT_CURRENCIES, formatMoney, formatPlain, isValidCurrency, parseAmount } from '#shared/money/currency'
-import { convertMinor, describeRate, invertRate, isValidRate } from '#shared/money/fx'
-import { validatePotPayment } from '#shared/money/pots'
 import { computeExpense, formatPercent, parsePercent, parseShares, SPLIT_LABELS, type SplitEntry, type SplitMode } from '#shared/money/split'
 import type { Expense } from '#shared/types/domain'
 import { uuid } from '~/lib/supabase'
-import { getMeta, setMeta } from '~/sync/db'
 import { storeFile } from '~/sync/files'
 
 const props = defineProps<{ expense?: Expense | null; preset?: { description?: string; category?: string; date?: string | null } }>()
 const emit = defineEmits<{ saved: [Expense]; deleted: [] }>()
 
 const { data, me, base, memberById, chapterForDate, placeForDate } = useTripData()
-const { pots } = useLedger()
 const { today } = useNow()
 const { show } = useToast()
 const { tripId } = useSession()
@@ -32,7 +29,8 @@ const amountText = ref(e ? formatPlain(e.amount_minor, e.currency) : '')
 const currency = ref(e?.currency ?? '')
 const otherCurrency = ref('')
 const description = ref(e?.description ?? props.preset?.description ?? '')
-const cat = ref<string>(e?.category ?? props.preset?.category ?? 'otros')
+// Sin categoría por defecto en un gasto nuevo: hay que elegirla (sirve para los números).
+const cat = ref<string>(e?.category ?? props.preset?.category ?? '')
 const date = ref(e?.date ?? props.preset?.date ?? today.value)
 const note = ref(e?.note ?? '')
 const receiptPath = ref<string | null>(e?.receipt_path ?? null)
@@ -55,12 +53,6 @@ if (e && ['exact', 'percent', 'shares'].includes(e.split_mode)) {
   }
 }
 
-// Tipo de cambio
-const fxRate = ref<string | null>(e?.fx_rate ?? null)
-const fxSource = ref<Expense['fx_source']>(e?.fx_source ?? 'same')
-const fxDate = ref<string | null>(null)
-const editingFx = ref(false)
-const fxText = ref('')
 
 // Si no hay miembros todavía al montar (primer render), completar.
 watch(allIds, ids => {
@@ -69,63 +61,41 @@ watch(allIds, ids => {
   if (!personalOf.value && me.value) personalOf.value = me.value.id
 }, { immediate: true })
 
-// Moneda por defecto: la última que usó este celular en este capítulo, o la del capítulo.
+// Moneda por defecto: la base del viaje (USD). Se cambia con el selector de al lado del monto.
 const chapter = computed(() => chapterForDate(date.value))
 const place = computed(() => placeForDate(date.value))
-onMounted(async () => {
-  if (!currency.value) {
-    const last = await getMeta<string>(`lastCurrency:${chapter.value?.id ?? 'x'}`)
-    currency.value = last ?? chapter.value?.currency ?? base.value
-  }
+onMounted(() => {
+  if (!currency.value) currency.value = base.value
   if (!e) document.getElementById('amount')?.focus()
 })
 
 const currencyOptions = computed(() => {
-  const set = new Set<string>([chapter.value?.currency ?? base.value, ...DEFAULT_CURRENCIES])
+  const set = new Set<string>([base.value, ...DEFAULT_CURRENCIES])
   if (currency.value) set.add(currency.value)
   return [...set].filter(Boolean)
 })
 
+// "Otra…" en el selector abre un campito para escribir el código (GBP, CHF…).
+const OTHER = '__otra'
+const otherOpen = ref(false)
+function onCurrencyPick(ev: Event) {
+  const el = ev.target as HTMLSelectElement
+  if (el.value === OTHER) {
+    otherOpen.value = true
+    el.value = currency.value
+    nextTick(() => document.getElementById('other-cur')?.focus())
+  } else {
+    currency.value = el.value
+    otherOpen.value = false
+  }
+}
 function pickOther() {
   const c = otherCurrency.value.trim().toUpperCase()
   if (isValidCurrency(c)) {
     currency.value = c
     otherCurrency.value = ''
+    otherOpen.value = false
   } else show('Ese código de moneda no existe (ej.: GBP, CHF, JPY)', 'warn')
-}
-
-watch(currency, async (c, old) => {
-  if (!c) return
-  if (old && amountText.value) {
-    // Mantener lo escrito; solo cambia cómo se interpreta.
-  }
-  if (e && c === e.currency && fxRate.value) return
-  const q = await quoteRate(c, base.value)
-  fxRate.value = q.rate
-  fxSource.value = q.source
-  fxDate.value = q.date
-  editingFx.value = q.source === 'manual' && !q.rate
-}, { immediate: !e })
-
-// Mostrar el tipo de cambio en la dirección más natural: "1 EUR = 1,08 USD" o "1 USD = 1450 ARS".
-const fxInverse = computed(() => !!fxRate.value && Number(fxRate.value) < 1)
-function startEditFx() {
-  editingFx.value = true
-  if (fxRate.value) {
-    const v = fxInverse.value ? invertRate(fxRate.value, 4) : fxRate.value
-    fxText.value = Number(v).toLocaleString('es-AR', { maximumFractionDigits: 6, useGrouping: false })
-  }
-}
-function applyFx() {
-  const raw = fxText.value.trim().replace(/\./g, fxText.value.includes(',') ? '' : '.').replace(',', '.')
-  if (!isValidRate(raw)) {
-    show('Escribí un número válido para el tipo de cambio', 'warn')
-    return
-  }
-  fxRate.value = (fxInverse.value || (!fxRate.value && currency.value === 'ARS')) ? invertRate(raw) : raw
-  fxSource.value = 'manual'
-  editingFx.value = false
-  void rememberManualRate(currency.value, fxRate.value)
 }
 
 // ---- Cálculo ----
@@ -164,28 +134,20 @@ const result = computed(() => {
   return computeExpense({ id, amount: amount.value, currency: currency.value, payers: payers.value, split: { mode: mode.value, entries: entries.value } })
 })
 
-const potIssue = computed(() => {
-  if (!amount.value) return null
-  for (const [pid, v] of Object.entries(payers.value)) {
-    const pot = data.pots.find(p => p.id === pid)
-    if (!pot) continue
-    const summary = pots.value.find(s => s.potId === pid)
-    const already = e?.payers[pid] ?? 0
-    const r = validatePotPayment({ id: pid, currency: pot.currency, remaining: (summary?.remaining ?? 0) + already }, currency.value, v)
-    if (!r.ok) return r.error
-  }
-  return null
-})
-
-const baseAmount = computed(() => (amount.value && fxRate.value ? convertMinor(amount.value, currency.value, base.value, fxRate.value) : null))
-const needsFx = computed(() => currency.value !== base.value && !fxRate.value)
 const error = computed(() => {
   if (!amountText.value) return null
   if (!amount.value) return 'No entiendo ese monto. Probá con algo como 12,50'
   if (result.value && !result.value.ok) return result.value.error
-  return potIssue.value
+  return null
 })
-const canSave = computed(() => !!result.value?.ok && !potIssue.value && !needsFx.value && !saving.value)
+/** Lo obligatorio además del monto: categoría y en qué fue (para poder entender los números después). */
+const missing = computed(() => {
+  const out: string[] = []
+  if (!cat.value) out.push('categoría')
+  if (!description.value.trim()) out.push('en qué')
+  return out
+})
+const canSave = computed(() => !!result.value?.ok && !missing.value.length && !saving.value)
 
 // Totales parciales para guiar al cargar montos / porcentajes
 const splitHint = computed(() => {
@@ -217,7 +179,7 @@ async function onReceipt(ev: Event) {
 // ---- Guardar / borrar ----
 const saving = ref(false)
 async function save() {
-  if (!result.value?.ok || !amount.value || !fxRate.value) return
+  if (!result.value?.ok || !amount.value || missing.value.length) return
   saving.value = true
   const { payers: p, shares } = result.value.value
   const inputs: Record<string, number> =
@@ -227,13 +189,14 @@ async function save() {
   const row = {
     ...(e ?? {}),
     id,
-    description: description.value.trim() || categoryOf(cat.value).label,
+    description: description.value.trim(),
     category: cat.value as Expense['category'],
     currency: currency.value,
     amount_minor: amount.value,
-    fx_rate: fxRate.value,
-    fx_source: currency.value === base.value ? 'same' : fxSource.value,
-    base_amount_minor: baseAmount.value ?? amount.value,
+    // Sin conversión: cada gasto queda en su moneda (la base pide un tipo de cambio, va 1).
+    fx_rate: '1',
+    fx_source: 'same' as const,
+    base_amount_minor: amount.value,
     date: date.value,
     chapter_id: chapter.value?.id ?? null,
     place_id: place.value?.id ?? null,
@@ -244,7 +207,6 @@ async function save() {
     receipt_path: receiptPath.value,
     note: note.value.trim() || null,
   }
-  await setMeta(`lastCurrency:${chapter.value?.id ?? 'x'}`, currency.value)
   const saved = (await saveRow('expenses', row)) as unknown as Expense
   saving.value = false
   emit('saved', saved)
@@ -258,10 +220,7 @@ async function remove() {
   emit('deleted')
 }
 
-const payerOptions = computed(() => [
-  ...members.value.map(m => ({ id: m.id, name: m.name, member: m, pot: null })),
-  ...data.pots.filter(p => p.currency === currency.value).map(p => ({ id: p.id, name: p.name, member: null, pot: p })),
-])
+const payerOptions = computed(() => members.value.map(m => ({ id: m.id, name: m.name, member: m })))
 </script>
 
 <template>
@@ -269,66 +228,37 @@ const payerOptions = computed(() => [
     <!-- Monto + moneda -->
     <section class="card tape">
       <label for="amount" class="field-label">¿Cuánto?</label>
-      <div class="flex items-center gap-2">
+      <div class="flex gap-2">
         <input
           id="amount"
           v-model="amountText"
-          class="input min-h-14 flex-1 text-[20px] font-extrabold tabular"
+          class="input min-w-0 flex-1 text-[18px] font-bold tabular"
           inputmode="decimal"
           autocomplete="off"
           placeholder="0,00"
           required
         >
-        <span class="min-w-14 text-center text-[18px] font-extrabold">{{ currency }}</span>
-      </div>
-      <div class="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Moneda">
-        <button
-          v-for="c in currencyOptions"
-          :key="c"
-          type="button"
-          role="radio"
-          class="chip"
-          :aria-checked="currency === c"
-          @click="currency = c"
-        >{{ c }}</button>
-        <div class="flex items-center gap-1">
-          <label for="other-cur" class="sr-only">Otra moneda</label>
-          <input id="other-cur" v-model="otherCurrency" class="input w-20 uppercase" maxlength="3" placeholder="Otra" @keydown.enter.prevent="pickOther">
-          <button v-if="otherCurrency.length === 3" type="button" class="btn btn-secondary px-3" @click="pickOther">OK</button>
+        <div class="relative shrink-0">
+          <label for="currency" class="sr-only">Moneda</label>
+          <select id="currency" :value="currency" class="input w-[104px] appearance-none pr-9 font-semibold" @change="onCurrencyPick">
+            <option v-for="c in currencyOptions" :key="c" :value="c">{{ c }}</option>
+            <option :value="OTHER">Otra…</option>
+          </select>
+          <NavIcon name="chevron" :size="16" class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rotate-90 text-ink-soft" />
         </div>
+      </div>
+      <div v-if="otherOpen" class="mt-2 flex items-center gap-2">
+        <label for="other-cur" class="sr-only">Código de otra moneda</label>
+        <input id="other-cur" v-model="otherCurrency" class="input flex-1 uppercase" maxlength="3" placeholder="Código, ej.: GBP" @keydown.enter.prevent="pickOther">
+        <button type="button" class="btn btn-secondary" :disabled="otherCurrency.length !== 3" @click="pickOther">Usar</button>
       </div>
 
-      <!-- Tipo de cambio -->
-      <div v-if="currency && currency !== base" class="mt-3 rounded-xl bg-paper-2 p-3 text-[14px]">
-        <div v-if="!editingFx && fxRate" class="flex items-center justify-between gap-2">
-          <div>
-            <div class="font-bold">{{ describeRate(fxRate, currency, base) }}</div>
-            <div class="text-ink-soft">
-              {{ fxSource === 'auto' ? 'Automático (BCE)' : fxSource === 'cached' ? `Guardado${fxDate ? ` del ${fxDate}` : ''} (sin señal)` : 'Cargado a mano' }}
-              <template v-if="baseAmount"> · ≈ {{ formatMoney(baseAmount, base) }}</template>
-            </div>
-          </div>
-          <button type="button" class="btn btn-ghost px-2" @click="startEditFx">Cambiar</button>
-        </div>
-        <div v-else>
-          <label for="fx" class="field-label">
-            <template v-if="fxInverse || (!fxRate && currency === 'ARS')">¿Cuántos {{ currency }} por 1 {{ base }}?</template>
-            <template v-else>¿Cuántos {{ base }} vale 1 {{ currency }}?</template>
-          </label>
-          <p v-if="currency === 'ARS'" class="mb-2 text-ink-soft">El de pesos se carga a mano: depende de con qué pagaste.</p>
-          <div class="flex gap-2">
-            <input id="fx" v-model="fxText" class="input flex-1 tabular" inputmode="decimal" placeholder="ej.: 1450" @keydown.enter.prevent="applyFx">
-            <button type="button" class="btn btn-secondary" @click="applyFx">Listo</button>
-          </div>
-        </div>
-      </div>
     </section>
 
-    <!-- Qué fue -->
+    <!-- Categoría -->
     <section>
-      <label for="desc" class="field-label">¿En qué? <span class="font-normal">(opcional)</span></label>
-      <input id="desc" v-model="description" class="input" maxlength="200" :placeholder="categoryOf(cat).label">
-      <div class="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-label="Categoría">
+      <span id="cat-label" class="field-label">Categoría</span>
+      <div class="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="cat-label">
         <button
           v-for="c in CATEGORIES"
           :key="c.id"
@@ -339,6 +269,12 @@ const payerOptions = computed(() => [
           @click="cat = c.id"
         ><span aria-hidden="true">{{ c.emoji }}</span> {{ c.label }}</button>
       </div>
+    </section>
+
+    <!-- Qué fue -->
+    <section>
+      <label for="desc" class="field-label">¿En qué?</label>
+      <input id="desc" v-model="description" class="input" maxlength="200" required placeholder="ej.: Cena en Jaffa, taxi al hostel…">
     </section>
 
     <!-- Quién pagó -->
@@ -359,13 +295,13 @@ const payerOptions = computed(() => [
           :aria-checked="singlePayer === o.id"
           @click="singlePayer = o.id"
         >
-          <MemberAvatar :member="o.member" :pot="o.pot" :size="38" />{{ o.name }}
+          <MemberAvatar :member="o.member" :size="38" />{{ o.name }}
         </button>
       </div>
       <div v-else class="card space-y-2 p-3">
         <div v-for="o in payerOptions" :key="o.id" class="flex items-center gap-2">
-          <MemberAvatar :member="o.member" :pot="o.pot" :size="32" />
-          <label :for="`pay-${o.id}`" class="flex-1 font-bold">{{ o.name }}</label>
+          <MemberAvatar :member="o.member" :size="32" />
+          <label :for="`pay-${o.id}`" class="flex-1 font-semibold">{{ o.name }}</label>
           <input :id="`pay-${o.id}`" v-model="multiPayText[o.id]" class="input w-32 text-right tabular" inputmode="decimal" placeholder="0">
         </div>
       </div>
@@ -405,7 +341,7 @@ const payerOptions = computed(() => [
       <div v-else class="card space-y-2 p-3">
         <div v-for="m in members" :key="m.id" class="flex items-center gap-2">
           <MemberAvatar :member="m" :size="32" />
-          <label :for="`split-${m.id}`" class="flex-1 font-bold">{{ m.name }}</label>
+          <label :for="`split-${m.id}`" class="flex-1 font-semibold">{{ m.name }}</label>
           <span v-if="mode !== 'exact' && previewShare(m.id)" class="text-[13px] text-ink-soft tabular">{{ formatMoney(previewShare(m.id)!, currency) }}</span>
           <div class="flex items-center gap-1">
             <input
@@ -415,16 +351,16 @@ const payerOptions = computed(() => [
               inputmode="decimal"
               :placeholder="mode === 'shares' ? '0' : '0'"
             >
-            <span class="w-10 text-[14px] font-bold text-ink-soft">{{ mode === 'percent' ? '%' : mode === 'shares' ? 'partes' : '' }}</span>
+            <span class="w-10 text-[14px] text-ink-soft">{{ mode === 'percent' ? '%' : mode === 'shares' ? 'partes' : '' }}</span>
           </div>
         </div>
-        <p v-if="splitHint" class="pt-1 text-[14px] font-bold text-ink-soft tabular">{{ splitHint }}</p>
+        <p v-if="splitHint" class="pt-1 text-[14px] text-ink-soft tabular">{{ splitHint }}</p>
       </div>
     </section>
 
     <!-- Más opciones -->
     <section>
-      <button type="button" class="btn btn-ghost px-0" :aria-expanded="showMore" @click="showMore = !showMore">
+      <button type="button" class="min-h-11 px-1 text-[14px] font-semibold text-primary-dark" :aria-expanded="showMore" @click="showMore = !showMore">
         {{ showMore ? 'Menos opciones' : 'Fecha, nota y foto del ticket' }}
       </button>
       <div v-if="showMore" class="mt-2 space-y-3">
@@ -453,24 +389,23 @@ const payerOptions = computed(() => [
     </section>
 
     <!-- Error + guardar -->
-    <p v-if="error" class="rounded-xl border-2 border-bad bg-bad-soft p-3 text-[15px] font-bold text-bad" role="alert">{{ error }}</p>
-    <p v-else-if="needsFx && amount" class="rounded-xl border-2 border-warn bg-warn-soft p-3 text-[15px] font-bold text-warn" role="alert">
-      Falta el tipo de cambio de {{ currency }} a {{ base }}.
-    </p>
+    <p v-if="error" class="rounded-xl border-2 border-bad bg-bad-soft p-3 text-[15px] font-semibold text-bad" role="alert">{{ error }}</p>
 
     <div class="sticky bottom-[calc(env(safe-area-inset-bottom)+76px)] z-10 -mx-4 bg-gradient-to-t from-paper via-paper to-transparent px-4 pb-2 pt-4">
       <button type="submit" class="btn btn-primary btn-block btn-big" :disabled="!canSave">
-        {{ saving ? 'Guardando…' : e ? 'Guardar cambios' : amount ? `Guardar ${formatMoney(amount, currency)}` : 'Guardar' }}
+        {{ saving ? 'Guardando…' : amount && missing.length ? `Falta: ${missing.join(' y ')}` : e ? 'Guardar cambios' : amount ? `Guardar ${formatMoney(amount, currency)}` : 'Guardar' }}
       </button>
     </div>
 
-    <div v-if="e" class="space-y-2 border-t-2 border-dashed border-line pt-4 text-[14px] text-ink-soft">
-      <p>
-        Lo cargó {{ memberById.get(e.created_by ?? '')?.name ?? '—' }}
+    <div v-if="e" class="border-t border-dashed border-line pt-2">
+      <p v-if="memberById.get(e.created_by ?? '')" class="px-1 pt-1 text-[13px] text-ink-soft">
+        Lo cargó {{ memberById.get(e.created_by ?? '')?.name }}
         <template v-if="e.updated_by && e.version && e.version > 1"> · última edición: {{ memberById.get(e.updated_by)?.name ?? '—' }}</template>
       </p>
-      <ActivityHistory entity="expenses" :entity-id="e.id" />
-      <button type="button" class="btn btn-secondary text-bad" @click="remove"><NavIcon name="trash" :size="20" /> Borrar gasto</button>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <ActivityHistory entity="expenses" :entity-id="e.id" />
+        <button type="button" class="min-h-11 px-1 text-[14px] font-semibold text-bad" @click="remove">Borrar gasto</button>
+      </div>
     </div>
   </form>
 </template>

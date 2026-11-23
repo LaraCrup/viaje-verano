@@ -53,6 +53,11 @@ withDefaults(defineProps<{ name: string; size?: number; rot?: number; animate?: 
       <path d="M32 52L8 24c8-10 40-10 48 0z" fill="#f9b3d1" />
       <path d="M32 52 20 18M32 52V16M32 52l12-34" fill="none" stroke="#c62e65" />
     </g>
+    <g v-else-if="name === 'pin'" stroke="#2f1847" stroke-width="3" stroke-linejoin="round">
+      <path d="M32 58S13 39 13 25a19 19 0 0 1 38 0c0 14-19 33-19 33z" fill="#972db5" />
+      <circle cx="32" cy="25" r="7.5" fill="#f9e3fe" />
+      <path d="M21 18c2-4 5.5-6.5 10-7" fill="none" stroke="#f9e3fe" stroke-linecap="round" />
+    </g>
     <g v-else-if="name === 'squiggle'" fill="none" stroke="#c62e65" stroke-width="4" stroke-linecap="round">
       <path d="M4 36c5-10 9-10 12 0s7 10 12 0 9-10 12 0 7 10 12 0 7-8 8-4" />
     </g>

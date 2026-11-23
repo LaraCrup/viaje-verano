@@ -5,7 +5,7 @@
 import { liveQuery, type Subscription } from 'dexie'
 import type {
   Attachment, Chapter, ChecklistItem, CountryInfo, Day, Expense, JournalEntry, Member, Place, Plan, Poll, PollOption, PollVote,
-  Pot, Settlement, Stay, Transport, Trip,
+  Settlement, Stay, Transport, Trip,
 } from '#shared/types/domain'
 import { uuid } from '~/lib/supabase'
 import { getDb, type SyncTable } from '~/sync/db'
@@ -18,7 +18,6 @@ export const tripData = reactive({
   places: [] as Place[],
   chapters: [] as Chapter[],
   days: [] as Day[],
-  pots: [] as Pot[],
   expenses: [] as Expense[],
   settlements: [] as Settlement[],
   transports: [] as Transport[],
@@ -61,7 +60,7 @@ export function loadTripData(tripId: string) {
   current = tripId
   const db = getDb()
   const lists: ListKey[] = [
-    'members', 'places', 'chapters', 'days', 'pots', 'expenses', 'settlements', 'transports', 'stays', 'plans', 'attachments',
+    'members', 'places', 'chapters', 'days', 'expenses', 'settlements', 'transports', 'stays', 'plans', 'attachments',
     'polls', 'poll_options', 'poll_votes', 'checklist_items', 'country_info', 'journal_entries',
   ]
   let pending = lists.length + 1
@@ -112,12 +111,11 @@ export function useTripData() {
   const placeById = computed(() => new Map(tripData.places.map(p => [p.id, p])))
   const chapterById = computed(() => new Map(tripData.chapters.map(c => [c.id, c])))
   const dayByDate = computed(() => new Map(tripData.days.map(d => [d.date, d])))
-  const potById = computed(() => new Map(tripData.pots.map(p => [p.id, p])))
   const me = computed(() => memberById.value.get(memberId.value) ?? null)
   const base = computed(() => tripData.trip?.base_currency ?? 'USD')
 
   function partyName(id: string) {
-    return memberById.value.get(id)?.name ?? potById.value.get(id)?.name ?? '¿?'
+    return memberById.value.get(id)?.name ?? '¿?'
   }
 
   function chapterForDate(date: string) {
@@ -144,7 +142,6 @@ export function useTripData() {
     placeById,
     chapterById,
     dayByDate,
-    potById,
     partyName,
     chapterForDate,
     placeForDate,

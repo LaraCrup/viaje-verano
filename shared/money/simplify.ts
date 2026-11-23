@@ -4,7 +4,7 @@
  * Si se agrupa a las partes en conjuntos cuyo balance suma 0, cada conjunto de k
  * partes se salda con k − 1 transferencias. El mínimo total es n − (máxima cantidad
  * de conjuntos disjuntos que suman 0). Encontrar esa partición es exponencial en
- * general, pero con 6 amigas + cajas (≤ 16 partes) se resuelve exacto en milisegundos
+ * general, pero con 6 amigas (≤ 16 partes) se resuelve exacto en milisegundos
  * con programación dinámica sobre subconjuntos. Para más partes se usa el greedy clásico.
  */
 import type { Minor } from './currency'

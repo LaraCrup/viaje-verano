@@ -44,7 +44,14 @@ async function addSuggestions() {
   show('Sugerencias agregadas: borrá las que no te sirvan')
 }
 async function toggle(i: ChecklistItem) {
+  haptic('light')
+  const completes = !i.done && items.value.length >= 2 && done.value === items.value.length - 1
   await saveRow('checklist_items', { ...i, done: !i.done })
+  // Se terminó la lista: festejo
+  if (completes) {
+    celebrate()
+    show('¡Lista completa! 🎉')
+  }
 }
 async function remove(i: ChecklistItem) {
   await deleteRow('checklist_items', i)
@@ -59,25 +66,31 @@ async function assign(i: ChecklistItem, memberId: string) {
   <div>
     <PageHeader title="Listas" back="/mas" sticker="heart" />
 
-    <div class="mb-4 flex gap-2" role="tablist" aria-label="Listas">
-      <button v-for="[id, label] in [['valija', 'Mi valija'], ['documentos', 'Mis documentos'], ['grupo', 'Del grupo']] as const" :key="id" type="button" role="tab" class="chip" :class="tab === id ? 'is-on' : ''" :aria-selected="tab === id" @click="tab = id">{{ label }}</button>
+    <div class="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4" role="tablist" aria-label="Listas">
+      <button v-for="[id, label] in [['valija', 'Mi valija'], ['documentos', 'Mis documentos'], ['grupo', 'Del grupo']] as const" :key="id" type="button" role="tab" class="chip shrink-0 whitespace-nowrap" :class="tab === id ? 'is-on' : ''" :aria-selected="tab === id" @click="tab = id">{{ label }}</button>
     </div>
 
-    <p class="mb-3 text-[14px] text-ink-soft">
+    <p class="mb-2 px-1 text-[13px] text-ink-soft">
       <template v-if="tab === 'grupo'">Lo que llevamos entre todas. Asigná quién lo lleva.</template>
       <template v-else>Tu lista personal ({{ done }} de {{ items.length }} listos).</template>
     </p>
 
-    <div v-if="items.length" class="mb-3 h-2.5 rounded-full bg-paper-2" aria-hidden="true">
-      <div class="h-2.5 rounded-full bg-ok transition-all" :style="{ width: `${Math.round((done / items.length) * 100)}%` }" />
+    <div v-if="items.length" class="mb-3 h-1.5 rounded-full bg-paper-2" aria-hidden="true">
+      <div class="h-1.5 rounded-full bg-primary transition-all" :style="{ width: `${Math.round((done / items.length) * 100)}%` }" />
     </div>
 
     <ul class="card mb-4 divide-y divide-dashed divide-line p-0">
-      <li v-for="i in items" :key="i.id" class="flex items-center gap-2 px-2 py-1">
-        <button type="button" class="tick rounded-xl" :aria-pressed="i.done" :aria-label="`${i.text}: ${i.done ? 'listo' : 'pendiente'}`" @click="toggle(i)">
-          <NavIcon v-if="i.done" name="check" :size="20" />
+      <li v-for="i in items" :key="i.id" class="flex items-center gap-1 py-0.5 pl-1 pr-2">
+        <!-- Casilla chica (24 px) dentro de un área de 44 px, para que siga siendo fácil de tocar -->
+        <button type="button" class="grid h-11 w-11 shrink-0 place-items-center" :aria-pressed="i.done" :aria-label="`${i.text}: ${i.done ? 'listo' : 'pendiente'}`" @click="toggle(i)">
+          <span
+            class="grid h-6 w-6 place-items-center rounded-md transition-colors"
+            :class="i.done ? 'bg-primary text-white' : 'bg-white shadow-[inset_0_0_0_2px_var(--color-line)]'"
+          >
+            <Transition name="pop"><NavIcon v-if="i.done" name="check" :size="15" /></Transition>
+          </span>
         </button>
-        <span class="flex-1 text-[16px]" :class="i.done ? 'line-through opacity-60' : 'font-semibold'">{{ i.text }}</span>
+        <span class="flex-1 text-[15px]" :class="i.done ? 'text-ink-soft line-through decoration-ink-soft/50' : 'font-semibold'">{{ i.text }}</span>
         <template v-if="tab === 'grupo'">
           <label :for="`who-${i.id}`" class="sr-only">Quién lleva {{ i.text }}</label>
           <select :id="`who-${i.id}`" :value="i.owner_member_id ?? ''" class="input w-28 text-[14px]" @change="assign(i, ($event.target as HTMLSelectElement).value)">
@@ -85,9 +98,9 @@ async function assign(i: ChecklistItem, memberId: string) {
             <option v-for="m in data.members" :key="m.id" :value="m.id">{{ m.name }}</option>
           </select>
         </template>
-        <button type="button" class="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-paper-2" :aria-label="`Borrar ${i.text}`" @click="remove(i)"><NavIcon name="trash" :size="18" /></button>
+        <button type="button" class="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-paper-2" :aria-label="`Borrar ${i.text}`" @click="remove(i)"><NavIcon name="trash" :size="16" class="text-ink-soft" /></button>
       </li>
-      <li v-if="!items.length" class="p-4 text-center text-[15px] text-ink-soft">Vacía por ahora.</li>
+      <li v-if="!items.length" class="p-4 text-center text-[14px] text-ink-soft">Vacía por ahora.</li>
     </ul>
 
     <form class="flex gap-2" @submit.prevent="add()">
@@ -95,6 +108,6 @@ async function assign(i: ChecklistItem, memberId: string) {
       <input id="new-item" v-model="newText" class="input flex-1" maxlength="200" placeholder="Agregar…">
       <button type="submit" class="btn btn-primary" :disabled="!newText.trim()">Agregar</button>
     </form>
-    <button type="button" class="btn btn-ghost mt-2 px-0" @click="addSuggestions">Sumar sugerencias</button>
+    <button type="button" class="mt-1 min-h-11 px-1 text-[14px] font-semibold text-primary-dark" @click="addSuggestions">Sumar sugerencias</button>
   </div>
 </template>

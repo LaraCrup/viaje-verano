@@ -53,7 +53,7 @@ from (values
   ('2026-12-26', '00000000-0000-4000-a000-000000000302', '00000000-0000-4000-a000-000000000203', 'Taglit', 'Taglit (lo organiza el programa)'),
   ('2026-12-27', '00000000-0000-4000-a000-000000000302', '00000000-0000-4000-a000-000000000203', 'Taglit', 'Taglit (lo organiza el programa)'),
   ('2026-12-28', '00000000-0000-4000-a000-000000000302', '00000000-0000-4000-a000-000000000203', 'Taglit', 'Taglit (lo organiza el programa)'),
-  ('2026-12-29', '00000000-0000-4000-a000-000000000302', '00000000-0000-4000-a000-000000000203', 'Taglit (fin a confirmar)', null),
+  ('2026-12-29', '00000000-0000-4000-a000-000000000302', '00000000-0000-4000-a000-000000000203', 'Taglit', 'Taglit (lo organiza el programa)'),
   ('2026-12-30', '00000000-0000-4000-a000-000000000302', '00000000-0000-4000-a000-000000000203', 'Israel por nuestra cuenta', null),
   ('2026-12-31', '00000000-0000-4000-a000-000000000302', '00000000-0000-4000-a000-000000000203', 'Año Nuevo en Israel 🎆', null),
   ('2027-01-01', '00000000-0000-4000-a000-000000000302', '00000000-0000-4000-a000-000000000203', 'Último día en Israel', null),
@@ -108,8 +108,7 @@ insert into public.stays
   (id, trip_id, chapter_id, name, kind, status, check_in_date, check_out_date, guests, booking_url, expense_id, notes)
 values
   ('00000000-0000-4000-a000-000000000401', '00000000-0000-4000-a000-000000000001', '00000000-0000-4000-a000-000000000302',
-   'Airbnb Israel', 'Airbnb', 'booked', '2026-12-30', '2027-01-01', 6,
-   'https://www.airbnb.com.ar/rooms/927451540234687186', null, null),
+   'Alojamiento en Israel', null, 'pending', '2026-12-30', '2027-01-02', 6, null, null, 'Sin definir todavía.'),
   ('00000000-0000-4000-a000-000000000402', '00000000-0000-4000-a000-000000000001', '00000000-0000-4000-a000-000000000303',
    'Alojamiento en Madrid', null, 'pending', '2027-01-02', '2027-01-05', 6, null, null, 'Sin definir todavía.'),
   ('00000000-0000-4000-a000-000000000403', '00000000-0000-4000-a000-000000000001', '00000000-0000-4000-a000-000000000304',
@@ -119,61 +118,116 @@ values
    'Yellow Square', 'Hostel', 'booked', '2027-01-11', '2027-01-14', 6,
    'https://yellowsquare.com/rome/', null, null);
 
--- Planes ------------------------------------------------------------------------------------
--- Valencia, ya con día asignado.
-insert into public.plans (trip_id, chapter_id, day_id, title, sort)
-select '00000000-0000-4000-a000-000000000001', '00000000-0000-4000-a000-000000000303', d.id, 'Excursión a Valencia', 1
-from public.days d where d.trip_id = '00000000-0000-4000-a000-000000000001' and d.date = '2027-01-03';
-
--- Ideas para Niza y alrededores, agrupadas en "días posibles" (sin día fijo).
-insert into public.plans (trip_id, chapter_id, title, group_label, sort)
-select '00000000-0000-4000-a000-000000000001', '00000000-0000-4000-a000-000000000304', t, g, s
-from (values
-  ('Niza', 'Día 1', 1),
-  ('Vieux Nice', 'Día 2', 2), ('Colline du Château', 'Día 2', 3),
-  ('Èze', 'Día 3', 4), ('Villefranche-sur-Mer', 'Día 3', 5),
-  ('Saint-Paul-de-Vence', 'Día 4', 6), ('Vence', 'Día 4', 7),
-  ('Menton', 'Día 5', 8), ('Mónaco', 'Día 5', 9),
-  ('Antibes', 'Día 6', 10), ('Biot', 'Día 6', 11), ('Saint-Tropez', 'Día 6', 12),
-  ('Grasse', 'Día 7', 13), ('Gourdon', 'Día 7', 14), ('Cannes', 'Día 7', 15)
-) as v(t, g, s);
-
 -- ---------------------------------------------------------------------
--- Info útil por país (V2). Todo lo sensible queda marcado para verificar
--- (needs_check = true) y el consulado va vacío a propósito.
+-- Info útil por país (V2). Verificada en noviembre de 2026 (consulados en
+-- las páginas oficiales de Cancillería; precios de transporte de 2026).
+-- Formato: un dato por renglón; "Título: texto" se muestra con título y "Ojo: …" como aviso
+-- (ver shared/info/blocks.ts).
 -- ---------------------------------------------------------------------
 insert into public.country_info (trip_id, country, section, title, body, needs_check, sort)
 select t.id, v.country, v.section, v.title, v.body, v.needs_check, v.sort
 from public.trips t
 cross join (values
   -- Israel
-  ('IL', 'emergencias', 'Emergencias', 'Policía: 100 · Ambulancia (Magen David Adom): 101 · Bomberos: 102' || chr(10) || '⚠️ Verificar antes de viajar.', true, 1),
-  ('IL', 'consulado', 'Embajada / consulado argentino', '⚠️ Completar: dirección, teléfono y teléfono de guardia (sacarlo de cancilleria.gob.ar).', true, 2),
-  ('IL', 'shabat', 'Shabat', 'Desde el viernes a la tarde hasta el sábado a la noche casi no hay transporte público y muchos comercios cierran. Planificar traslados y compras antes.' || chr(10) || '⚠️ Verificar horarios exactos de cada semana.', true, 3),
-  ('IL', 'transporte', 'Transporte', '⚠️ Completar: tarjeta de transporte, apps útiles, taxis.', true, 4),
-  ('IL', 'propinas', 'Propinas', '⚠️ Completar: costumbre local en restaurantes y taxis.', true, 5),
-  ('IL', 'enchufes', 'Enchufes', 'Tipo H (y suele aceptar C). ⚠️ Verificar y llevar adaptador.', true, 6),
-  ('IL', 'frases', 'Frases útiles (hebreo)', 'Hola / chau: Shalom' || chr(10) || 'Gracias: Todá' || chr(10) || 'Por favor: Bevakashá' || chr(10) || 'Sí / no: Ken / Lo' || chr(10) || '¿Cuánto cuesta?: Kamá zé olé?', false, 7),
+  ('IL', 'emergencias', $q$Emergencias$q$, $q$Policía: 100
+Ambulancia (Magen David Adom): 101
+Bomberos: 102
+Guardia consular argentina: +972 52-386-9501 (también WhatsApp)$q$, false, 1),
+  ('IL', 'consulado', $q$Embajada y consulado argentino$q$, $q$Dirección: Medinat HaYehudim 85, 2° piso, Herzliya Pituach (al norte de Tel Aviv).
+Teléfono: +972 73-252-0800
+Atención: lunes a jueves de 8 a 14 h y viernes de 8 a 13 h, solo con turno.
+Guardia para emergencias graves (accidentes, internaciones, detenciones): +972 52-386-9501 (también WhatsApp)
+Si no contestan: guardia de Cancillería en Buenos Aires, +54 9 11 5040-7243 (llamadas) o +54 9 11 5061-5903 (WhatsApp).$q$, false, 2),
+  ('IL', 'shabat', $q$Shabat$q$, $q$Cuándo: desde el viernes, un rato antes de que se ponga el sol, hasta el sábado a la noche.
+Qué no funciona: trenes, casi todos los colectivos y el tren ligero de Tel Aviv. También cierran muchos comercios.
+Qué sí funciona: taxis y sherut (combis compartidas).
+Viernes 25/12: empieza ≈ 16:20 y termina el sábado 26 ≈ 17:25.
+Viernes 1/1: empieza ≈ 16:25 y termina el sábado 2 ≈ 17:30.
+Son horarios aproximados para Tel Aviv; los exactos de cada semana están en hebcal.com.
+Ojo: el vuelo del sábado 2/1 a las 05:30 sale en pleno Shabat. No hay tren al aeropuerto: hay que ir en taxi, conviene reservarlo antes.$q$, false, 3),
+  ('IL', 'transporte', $q$Transporte$q$, $q$Tarjeta Rav-Kav: se compra en el aeropuerto Ben Gurion (en el centro de información de transporte, unos 5 ₪) o en las estaciones grandes, y se le carga plata. Sirve para tren, colectivos y tren ligero. En el tren no se puede pagar en efectivo.
+Apps: Moovit para ver recorridos y pagar; Pango también sirve para pagar desde el celular.
+Del aeropuerto a Tel Aviv: tren desde el nivel S de la Terminal 3, unos 15 minutos.
+Taxis: Gett o Yango (en inglés y con precio en la app, así no te cobran de más).
+En Shabat: no hay tren y casi no hay colectivos; solo taxis y sherut.$q$, false, 4),
+  ('IL', 'propinas', $q$Propinas$q$, $q$Restaurantes y bares: entre 10 % y 15 %. Fijate si la cuenta ya dice que incluye el servicio.
+Taxis: no es obligatoria, se redondea.$q$, false, 5),
+  ('IL', 'enchufes', $q$Enchufes$q$, $q$Tomas: tipo H (tres agujeros en triángulo) y tipo C. Los H nuevos aceptan la ficha C (dos patas redondas finitas).
+Tensión: 230 V, como en Argentina. Los cargadores de celular y notebook andan sin transformador (fijate que digan 100–240 V).
+Qué llevar: un adaptador de ficha argentina a tipo C. Sirve para todo el viaje.$q$, false, 6),
+  ('IL', 'frases', $q$Frases útiles (hebreo)$q$, $q$Hola / chau: Shalom
+Gracias: Todá
+Por favor: Bevakashá
+Sí / no: Ken / Lo
+¿Cuánto cuesta?: Kamá zé olé?$q$, false, 7),
   -- España
-  ('ES', 'emergencias', 'Emergencias', 'Número único europeo: 112' || chr(10) || '⚠️ Verificar antes de viajar.', true, 1),
-  ('ES', 'consulado', 'Consulado argentino en Madrid', '⚠️ Completar: dirección, teléfono y teléfono de guardia (sacarlo de cancilleria.gob.ar).', true, 2),
-  ('ES', 'transporte', 'Transporte', '⚠️ Completar: metro, tarjeta, cómo ir del aeropuerto, tren a Valencia.', true, 3),
-  ('ES', 'propinas', 'Propinas', '⚠️ Completar: costumbre local.', true, 4),
-  ('ES', 'enchufes', 'Enchufes', 'Tipo C / F (230 V). ⚠️ Verificar y llevar adaptador.', true, 5),
+  ('ES', 'emergencias', $q$Emergencias$q$, $q$Emergencias (todas): 112
+Policía Nacional: 091
+Urgencias médicas: 061
+Guardia consular argentina: +34 609 24 04 08$q$, false, 1),
+  ('ES', 'consulado', $q$Consulado argentino en Madrid$q$, $q$Dirección: Paseo de la Castellana 16, Madrid. Se mudó ahí; antes estaba en Fernando el Santo 15.
+Teléfono: +34 91 402 5115
+Guardia para emergencias graves: +34 609 24 04 08
+Si no contestan: guardia de Cancillería en Buenos Aires, +54 9 11 5040-7243 (llamadas) o +54 9 11 5061-5903 (WhatsApp).$q$, false, 2),
+  ('ES', 'transporte', $q$Transporte$q$, $q$Metro y colectivos (EMT): se usa la Tarjeta Transporte Público (se compra en las máquinas del metro) cargada con 10 viajes: 7,30 € en 2026, con un descuento que dura hasta el 31/12; en enero puede volver a subir.
+Aeropuerto: metro línea 8 (se suma un suplemento de 3 €) o el colectivo Exprés Aeropuerto (5 €; ahí no sirve el de 10 viajes).
+Abono turístico: viajes ilimitados y no paga el suplemento del aeropuerto (desde unos 10 € por día).
+Tren a Valencia: alta velocidad (Renfe, Iryo u Ouigo) desde Madrid-Atocha o Chamartín hasta Valencia Joaquín Sorolla, entre 1 h 40 y 2 h. Conviene sacar los pasajes con anticipación.$q$, false, 3),
+  ('ES', 'propinas', $q$Propinas$q$, $q$Restaurantes: no es obligatoria. Si el servicio fue bueno, se redondea o se deja entre 5 % y 10 %.
+Bares y cafés: alcanza con dejar el cambio.$q$, false, 4),
+  ('ES', 'enchufes', $q$Enchufes$q$, $q$Tomas: tipo C y F (dos patas redondas).
+Tensión: 230 V, como en Argentina.
+Qué llevar: el adaptador de ficha argentina a tipo C.$q$, false, 5),
   -- Francia
-  ('FR', 'emergencias', 'Emergencias', 'Número único europeo: 112' || chr(10) || '⚠️ Verificar antes de viajar.', true, 1),
-  ('FR', 'consulado', 'Consulado argentino (Francia / Mónaco)', '⚠️ Completar: el más cercano a Niza, dirección y teléfono.', true, 2),
-  ('FR', 'transporte', 'Transporte', '⚠️ Completar: tranvía y buses de Niza, trenes a Mónaco, Menton, Cannes, Antibes.', true, 3),
-  ('FR', 'propinas', 'Propinas', '⚠️ Completar: costumbre local.', true, 4),
-  ('FR', 'enchufes', 'Enchufes', 'Tipo C / E (230 V). ⚠️ Verificar y llevar adaptador.', true, 5),
-  ('FR', 'frases', 'Frases útiles (francés)', 'Hola: Bonjour · Buenas noches: Bonsoir' || chr(10) || 'Gracias: Merci' || chr(10) || 'Por favor: S''il vous plaît' || chr(10) || '¿Cuánto cuesta?: Combien ça coûte ?' || chr(10) || 'La cuenta, por favor: L''addition, s''il vous plaît', false, 6),
+  ('FR', 'emergencias', $q$Emergencias$q$, $q$Emergencias (todas): 112
+Urgencias médicas (SAMU): 15
+Policía: 17
+Bomberos: 18
+Guardia consular argentina: +33 6 01 88 09 98$q$, false, 1),
+  ('FR', 'consulado', $q$Consulado argentino (Francia y Mónaco)$q$, $q$En Niza no hay consulado: Francia y Mónaco los atiende la sección consular de la Embajada en París.
+Dirección: 6 rue Cimarosa, París.
+Teléfono: +33 1 44 05 27 00
+Atención: de 9:30 a 14 h, con turno.
+Guardia para emergencias graves: +33 6 01 88 09 98
+Si no contestan: guardia de Cancillería en Buenos Aires, +54 9 11 5040-7243 (llamadas) o +54 9 11 5061-5903 (WhatsApp).$q$, false, 2),
+  ('FR', 'transporte', $q$Transporte$q$, $q$Tranvía y colectivos: los de Niza son de Lignes d'Azur. Boleto Solo 1,70 €, vale 74 minutos con combinaciones.
+Pases: 1 día 7 € · 7 días 20 €.
+Aeropuerto: tranvía línea 2, va al centro y al puerto. Hay un boleto de ida y vuelta al aeropuerto de 10 €.
+Mónaco, Menton, Cannes y Antibes: trenes regionales (TER) desde la estación Nice-Ville. Los pasajes se sacan en las máquinas de la estación o en la app SNCF Connect.$q$, false, 3),
+  ('FR', 'propinas', $q$Propinas$q$, $q$Restaurantes: el servicio ya viene incluido en la cuenta («service compris»).
+Si te atendieron bien: se dejan unas monedas o se redondea; no es obligatorio.$q$, false, 4),
+  ('FR', 'enchufes', $q$Enchufes$q$, $q$Tomas: tipo C y E. El E tiene una patita arriba, pero la ficha C entra igual.
+Tensión: 230 V, como en Argentina.
+Qué llevar: el adaptador de ficha argentina a tipo C.$q$, false, 5),
+  ('FR', 'frases', $q$Frases útiles (francés)$q$, $q$Hola: Bonjour
+Buenas noches: Bonsoir
+Gracias: Merci
+Por favor: S'il vous plaît
+¿Cuánto cuesta?: Combien ça coûte ?
+La cuenta, por favor: L'addition, s'il vous plaît$q$, false, 6),
   -- Italia
-  ('IT', 'emergencias', 'Emergencias', 'Número único europeo: 112' || chr(10) || '⚠️ Verificar antes de viajar.', true, 1),
-  ('IT', 'consulado', 'Consulado argentino en Roma', '⚠️ Completar: dirección, teléfono y teléfono de guardia (sacarlo de cancilleria.gob.ar).', true, 2),
-  ('IT', 'transporte', 'Transporte', '⚠️ Completar: metro y buses de Roma, boletos, cómo ir del aeropuerto.', true, 3),
-  ('IT', 'propinas', 'Propinas', '⚠️ Completar: costumbre local (coperto, servicio).', true, 4),
-  ('IT', 'enchufes', 'Enchufes', 'Tipo C / F / L (230 V). ⚠️ Verificar y llevar adaptador.', true, 5),
-  ('IT', 'frases', 'Frases útiles (italiano)', 'Hola: Ciao / Buongiorno' || chr(10) || 'Gracias: Grazie' || chr(10) || 'Por favor: Per favore' || chr(10) || '¿Cuánto cuesta?: Quanto costa?' || chr(10) || 'La cuenta, por favor: Il conto, per favore', false, 6)
+  ('IT', 'emergencias', $q$Emergencias$q$, $q$Emergencias (todas): 112
+Ambulancia: 118
+Guardia consular argentina: +39 335 603 1207$q$, false, 1),
+  ('IT', 'consulado', $q$Consulado argentino en Roma$q$, $q$Dirección: Via Barberini 67, 2° piso (cerca de Piazza Barberini).
+Teléfono: +39 06 4287 0023
+Atención: lunes a viernes de 8:30 a 13 h, solo con turno.
+Guardia para emergencias (no para consultas ni turnos): +39 335 603 1207
+Si no contestan: guardia de Cancillería en Buenos Aires, +54 9 11 5040-7243 (llamadas) o +54 9 11 5061-5903 (WhatsApp).$q$, false, 2),
+  ('IT', 'transporte', $q$Transporte$q$, $q$Metro, colectivos y tranvías: son de ATAC. Boleto BIT 1,50 €, vale 100 minutos. También se puede pagar directo con la tarjeta o el celular en los molinetes y en los colectivos (tap & go). Puede que aumente a 2 €.
+Pases: 24 h 8,50 € · 48 h 15 € · 72 h 22 €
+Llegada desde Niza: el micro llega a Tiburtina, que es estación de la línea B del metro.
+Aeropuerto de Fiumicino: tren Leonardo Express hasta Termini (unos 30 minutos). Los boletos de ATAC no sirven en ese tren.$q$, false, 3),
+  ('IT', 'propinas', $q$Propinas$q$, $q$En la cuenta: muchos restaurantes cobran «coperto» (cubierto, por persona) y a veces «servizio».
+Propina: no es obligatoria; si querés, redondeá o dejá unas monedas.$q$, false, 4),
+  ('IT', 'enchufes', $q$Enchufes$q$, $q$Tomas: tipo C, F y L. El L tiene tres agujeros en línea; la ficha C entra en todos.
+Tensión: 230 V, como en Argentina.
+Qué llevar: el adaptador de ficha argentina a tipo C.$q$, false, 5),
+  ('IT', 'frases', $q$Frases útiles (italiano)$q$, $q$Hola: Ciao / Buongiorno
+Gracias: Grazie
+Por favor: Per favore
+¿Cuánto cuesta?: Quanto costa?
+La cuenta, por favor: Il conto, per favore$q$, false, 6)
 ) as v(country, section, title, body, needs_check, sort)
 where t.slug = 'viaje-2026';
 

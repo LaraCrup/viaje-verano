@@ -4,6 +4,11 @@ import { formatDayShort } from '#shared/time/tz'
 const { chapters, transportsByDate, plansByDay, nightLabel } = useItinerary()
 const { today } = useNow()
 
+/** Días que ya pasaron: se muestran resumidos para que resalte lo que viene. */
+function doneCount(dayId: string) {
+  return (plansByDay.value.get(dayId) ?? []).filter(p => p.status === 'done').length
+}
+
 onMounted(() => {
   // Arrancar mostrando el día de hoy si estamos de viaje.
   nextTick(() => document.getElementById(`dia-${today.value}`)?.scrollIntoView({ block: 'center' }))
@@ -24,7 +29,7 @@ onMounted(() => {
         <span class="text-[26px]" aria-hidden="true">{{ chapter.emoji }}</span>
         <div>
           <h2>{{ chapter.name }}</h2>
-          <p class="text-[14px] font-bold opacity-95">{{ formatDayShort(chapter.start_date) }} → {{ formatDayShort(chapter.end_date) }}</p>
+          <p class="text-[13px] font-semibold opacity-90">{{ formatDayShort(chapter.start_date) }} → {{ formatDayShort(chapter.end_date) }}</p>
         </div>
         <span class="absolute -top-2 right-6 h-5 w-16 rotate-6 rounded-sm opacity-90" :style="{ background: chapter.accent }" aria-hidden="true" />
       </div>
@@ -36,26 +41,33 @@ onMounted(() => {
             :style="{ background: d.date === today ? chapter.color : '#ffffff', borderColor: chapter.color }"
             aria-hidden="true"
           />
-          <NuxtLink :to="`/itinerario/${d.date}`" class="card block p-3" :class="d.date === today ? 'ring-2 ring-primary' : ''">
-            <div class="flex items-baseline justify-between gap-2">
-              <p class="text-[13px] font-extrabold uppercase tracking-wide text-ink-soft">{{ formatDayShort(d.date) }}<span v-if="d.date === today" class="badge badge-ok ml-2 normal-case">Hoy</span></p>
-            </div>
-            <p class="text-[16px] font-extrabold">{{ d.title || 'Día libre' }}</p>
-            <ul class="mt-1 space-y-0.5 text-[14px]">
-              <li v-for="t in transportsByDate.get(d.date) ?? []" :key="t.id" class="flex items-center gap-1.5">
-                <NavIcon :name="KIND_ICON[t.kind] ?? 'plane'" :size="16" />
+          <!-- Día que ya pasó: resumido -->
+          <NuxtLink v-if="d.date < today" :to="`/itinerario/${d.date}`" class="card block p-3 opacity-75">
+            <p class="eyebrow">{{ formatDayShort(d.date) }}</p>
+            <p class="text-[15px] font-semibold">{{ d.title || 'Día libre' }}</p>
+            <p v-if="(plansByDay.get(d.id) ?? []).length" class="mt-0.5 flex items-center gap-1 text-[13px] text-ink-soft">
+              <NavIcon name="check" :size="14" /> {{ doneCount(d.id) }} de {{ (plansByDay.get(d.id) ?? []).length }} planes hechos
+            </p>
+          </NuxtLink>
+
+          <NuxtLink v-else :to="`/itinerario/${d.date}`" class="card block p-3" :class="d.date === today ? 'ring-2 ring-primary' : ''">
+            <p class="eyebrow flex items-center gap-2">{{ formatDayShort(d.date) }}<span v-if="d.date === today" class="badge bg-primary-soft normal-case tracking-normal text-primary-dark">Hoy</span></p>
+            <p class="text-[16px] font-bold">{{ d.title || 'Día libre' }}</p>
+            <ul class="mt-1.5 space-y-1 text-[14px]">
+              <li v-for="t in transportsByDate.get(d.date) ?? []" :key="t.id" class="flex items-center gap-2 font-semibold">
+                <NavIcon :name="KIND_ICON[t.kind] ?? 'plane'" :size="16" class="shrink-0" />
                 <span>{{ t.code ? `${t.code} · ` : '' }}{{ transportTitle(t) }}</span>
               </li>
-              <li v-for="p in plansByDay.get(d.id) ?? []" :key="p.id" class="flex items-center gap-1.5">
-                <span aria-hidden="true">★</span>
-                <span :class="p.status === 'done' ? 'line-through opacity-60' : ''">{{ p.start_time ? `${p.start_time} · ` : '' }}{{ p.title }}</span>
-              </li>
-              <li class="flex items-center gap-1.5 text-ink-soft">
-                <NavIcon name="bed" :size="16" />
-                <span v-if="nightLabel(d)" :class="nightLabel(d)!.warn ? 'font-bold text-warn' : ''">{{ nightLabel(d)!.text }}</span>
-                <span v-else class="font-bold text-warn">Noche sin alojamiento cargado</span>
+              <li v-for="p in plansByDay.get(d.id) ?? []" :key="p.id" class="flex gap-2">
+                <span class="w-[42px] shrink-0 tabular text-ink-soft">{{ p.start_time ?? '·' }}</span>
+                <span :class="p.status === 'done' ? 'text-ink-soft line-through decoration-ink-soft/50' : ''">{{ p.title }}</span>
               </li>
             </ul>
+            <p class="mt-1.5 flex items-center gap-1.5 text-[13px] text-ink-soft">
+              <NavIcon name="bed" :size="15" class="shrink-0" />
+              <span v-if="nightLabel(d)" :class="nightLabel(d)!.warn ? 'font-semibold text-warn' : ''">{{ nightLabel(d)!.text }}</span>
+              <span v-else class="font-semibold text-warn">Noche sin alojamiento cargado</span>
+            </p>
           </NuxtLink>
         </li>
       </ol>

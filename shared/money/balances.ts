@@ -1,10 +1,7 @@
 /**
  * Balances: cuánto le deben o debe cada una.
  *
- * "Parte" (party) es cualquiera que pone o recibe plata: una persona o una caja común.
- * La caja funciona como una participante más: cuando alguien pone plata en la caja
- * es un pago persona → caja, y cuando la caja paga un gasto figura como pagadora.
- * El saldo negativo de una caja es la plata que todavía tiene adentro.
+ * "Parte" (party) es cualquiera que pone o recibe plata: cada una de las integrantes.
  *
  * Convención: neto > 0 → le deben; neto < 0 → debe.
  */

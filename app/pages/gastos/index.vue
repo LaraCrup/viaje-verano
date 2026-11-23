@@ -3,8 +3,8 @@ import { category, CATEGORIES } from '#shared/money/categories'
 import { formatMoney } from '#shared/money/currency'
 import { formatDayLong } from '#shared/time/tz'
 
-const { data, me, base, placeById, partyName } = useTripData()
-const { inBase, stats } = useLedger()
+const { data, me, placeById, partyName } = useTripData()
+const { currencies, statsByCurrency } = useLedger()
 
 // Filtros (se recuerdan en este celular)
 const filters = reactive({ member: '', category: '', currency: '', place: '' })
@@ -24,7 +24,6 @@ function clearFilters() {
   Object.assign(filters, { member: '', category: '', currency: '', place: '' })
 }
 
-const currencies = computed(() => [...new Set(data.expenses.map(e => e.currency))])
 const places = computed(() => [...new Set(data.expenses.map(e => e.place_id).filter(Boolean) as string[])].map(id => placeById.value.get(id)).filter(Boolean))
 
 type Item =
@@ -56,7 +55,14 @@ const grouped = computed(() => {
   return out
 })
 
-const myBalance = computed(() => (me.value ? inBase.value[me.value.id] ?? 0 : 0))
+/** Total del grupo de cada moneda, sin convertir ("1.200,00 EUR · 3.400,00 ILS"). */
+const groupTotals = computed(() =>
+  currencies.value
+    .map(c => ({ c, v: statsByCurrency.value[c]?.groupTotal ?? 0 }))
+    .filter(x => x.v > 0)
+    .map(x => formatMoney(x.v, x.c))
+    .join(' · '),
+)
 
 function payersLabel(p: Record<string, number>) {
   const ids = Object.keys(p)
@@ -69,65 +75,62 @@ function payersLabel(p: Record<string, number>) {
     <PageHeader title="Gastos" sticker="heart" />
     <GastosTabs />
 
-    <section class="mb-4 grid grid-cols-2 gap-3">
-      <div class="card p-3">
-        <p class="text-[13px] font-bold text-ink-soft">Total del grupo</p>
-        <p class="text-[18px] font-extrabold tabular">{{ formatMoney(stats.groupTotal, base) }}</p>
+    <!-- Lo tuyo primero; el total del grupo es contexto -->
+    <NuxtLink to="/gastos/balances" class="card mb-4 flex items-center justify-between gap-3">
+      <div class="min-w-0">
+        <p class="text-[12px] text-ink-soft">Tu balance</p>
+        <MyBalances v-if="me" :member-id="me.id" />
+        <p v-if="groupTotals" class="mt-0.5 text-[13px] text-ink-soft tabular">Total del grupo: {{ groupTotals }}</p>
       </div>
-      <NuxtLink to="/gastos/balances" class="card block p-3">
-        <p class="text-[13px] font-bold text-ink-soft">Tu balance</p>
-        <p class="text-[18px] font-extrabold tabular" :class="myBalance > 0 ? 'text-ok' : myBalance < 0 ? 'text-bad' : ''">
-          {{ myBalance === 0 ? 'Al día' : formatMoney(myBalance, base, { signed: true }) }}
-        </p>
-      </NuxtLink>
-    </section>
+      <NavIcon name="chevron" :size="18" class="shrink-0 text-ink-soft" />
+    </NuxtLink>
 
-    <div class="mb-3 flex items-center justify-between gap-2">
-      <button type="button" class="btn btn-secondary min-h-11 px-3 text-[15px]" @click="filtersOpen = true">
-        <NavIcon name="filter" :size="20" /> Filtrar<template v-if="activeFilters"> ({{ activeFilters }})</template>
+    <div class="mb-1 flex items-center justify-between gap-2">
+      <button type="button" class="chip min-h-10 px-3" :class="activeFilters ? 'is-on' : ''" @click="filtersOpen = true">
+        <NavIcon name="filter" :size="16" /> Filtrar<template v-if="activeFilters"> ({{ activeFilters }})</template>
       </button>
-      <button v-if="activeFilters" type="button" class="btn btn-ghost px-2 text-[15px]" @click="clearFilters">Quitar filtros</button>
-      <NuxtLink to="/gastos/pago" class="btn btn-ghost px-2 text-[15px]">Saldar una deuda</NuxtLink>
+      <button v-if="activeFilters" type="button" class="min-h-11 px-1 text-[14px] font-semibold text-ink-soft underline underline-offset-4" @click="clearFilters">Quitar filtros</button>
+      <NuxtLink to="/gastos/pago" class="flex min-h-11 items-center px-1 text-[14px] font-semibold text-primary-dark">Saldar una deuda</NuxtLink>
     </div>
 
     <EmptyState v-if="!items.length" :text="activeFilters ? 'No hay gastos con esos filtros.' : 'Todavía no hay gastos. ¡Cargá el primero!'" sticker="star" />
 
-    <div v-for="g in grouped" :key="g.date" class="mb-4">
-      <h2 class="mb-2 font-sans text-[14px] font-extrabold uppercase tracking-wide text-ink-soft">{{ formatDayLong(g.date) }}</h2>
-      <ul class="space-y-2">
+    <div v-for="g in grouped" :key="g.date" class="mt-5">
+      <h2 class="eyebrow mb-2 px-1 font-sans first-letter:uppercase">{{ formatDayLong(g.date) }}</h2>
+      <ul class="card divide-y divide-line/70 px-3 py-0">
         <li v-for="it in g.items" :key="it.id">
-          <NuxtLink v-if="it.kind === 'expense'" :to="`/gastos/${it.id}`" class="card flex items-center gap-3 p-3">
-            <span class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-paper-2 text-[22px]" aria-hidden="true">{{ category(it.e.category).emoji }}</span>
+          <NuxtLink v-if="it.kind === 'expense'" :to="`/gastos/${it.id}`" class="flex items-center gap-3 py-2.5">
+            <span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-paper-2 text-[20px]" aria-hidden="true">{{ category(it.e.category).emoji }}</span>
             <div class="min-w-0 flex-1">
-              <p class="truncate font-extrabold">{{ it.e.description }}</p>
-              <p class="truncate text-[14px] text-ink-soft">
+              <p class="truncate text-[15px] font-semibold">{{ it.e.description }}</p>
+              <p class="truncate text-[13px] text-ink-soft">
                 {{ payersLabel(it.e.payers) }}
                 <template v-if="it.e.split_mode === 'personal'"> · personal</template>
                 <template v-if="it.e.receipt_path"> · 🧾</template>
               </p>
             </div>
-            <div class="text-right">
-              <p class="font-extrabold tabular">{{ formatMoney(it.e.amount_minor, it.e.currency) }}</p>
+            <div class="shrink-0 text-right">
+              <p class="text-[15px] font-bold tabular">{{ formatMoney(it.e.amount_minor, it.e.currency) }}</p>
               <p v-if="me && it.e.shares[me.id]" class="text-[13px] text-ink-soft tabular">vos {{ formatMoney(it.e.shares[me.id]!, it.e.currency) }}</p>
-              <p v-else-if="it.e.currency !== base" class="text-[13px] text-ink-soft tabular">≈ {{ formatMoney(it.e.base_amount_minor, base) }}</p>
             </div>
           </NuxtLink>
-          <NuxtLink v-else :to="`/gastos/pago?id=${it.id}`" class="flex min-h-12 items-center gap-3 rounded-xl border-2 border-dashed border-line px-3 py-2">
-            <span aria-hidden="true" class="text-[20px]">💸</span>
-            <p class="flex-1 text-[15px]">
-              <strong>{{ partyName(it.s.from_id) }}</strong> le pagó a <strong>{{ partyName(it.s.to_id) }}</strong>
+          <NuxtLink v-else :to="`/gastos/pago?id=${it.id}`" class="flex min-h-12 items-center gap-3 py-2 text-ink-soft">
+            <span aria-hidden="true" class="grid w-10 shrink-0 place-items-center text-[18px]">💸</span>
+            <p class="min-w-0 flex-1 text-[14px]">
+              {{ partyName(it.s.from_id) }} le pagó a {{ partyName(it.s.to_id) }}
             </p>
-            <p class="font-extrabold tabular">{{ formatMoney(it.s.amount_minor, it.s.currency) }}</p>
+            <p class="shrink-0 text-[14px] font-semibold tabular">{{ formatMoney(it.s.amount_minor, it.s.currency) }}</p>
           </NuxtLink>
         </li>
       </ul>
     </div>
 
+    <div class="h-16" aria-hidden="true" />
     <NuxtLink
       to="/gastos/nuevo"
-      class="btn btn-primary fixed bottom-[calc(env(safe-area-inset-bottom)+84px)] right-4 z-20 min-h-14 px-5 text-[17px]"
+      class="btn btn-primary fixed bottom-[calc(env(safe-area-inset-bottom)+84px)] right-4 z-20 px-5"
     >
-      <NavIcon name="plus" /> Gasto
+      <NavIcon name="plus" :size="20" /> Gasto
     </NuxtLink>
 
     <BottomSheet v-model:open="filtersOpen" title="Filtrar gastos">

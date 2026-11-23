@@ -27,21 +27,23 @@ const next = computed(() => data.days.find(d => d.date > today.value) ?? null)
 
     <article v-for="({ day, group, moments }, idx) in days" :key="day.id" class="mb-8">
       <NuxtLink :to="`/diario/${day.date}`" class="block">
-        <p class="mb-2 text-[13px] font-extrabold uppercase tracking-wide" :style="{ color: inkFor(chapterById.get(day.chapter_id ?? '')?.color) }">
+        <p class="eyebrow mb-2 px-1 first-letter:uppercase" :style="{ color: inkFor(chapterById.get(day.chapter_id ?? '')?.color) }">
           {{ formatDayLong(day.date) }} · {{ chapterById.get(day.chapter_id ?? '')?.name }}
         </p>
         <PhotoView v-if="group?.photo_path" :path="group.photo_path" :alt="group.text ?? `Foto del ${day.date}`" :rot="idx % 2 ? 1.2 : -1.2">
           <p v-if="group.text" class="font-display text-[18px] font-semibold">“{{ group.text }}”</p>
         </PhotoView>
-        <div v-else class="card border-dashed text-center">
-          <p v-if="group?.text" class="font-display text-[18px] font-semibold">“{{ group.text }}”</p>
-          <p v-else class="text-[15px] text-ink-soft">Sin foto ni frase todavía. Tocá para agregar.</p>
+        <div v-else-if="group?.text" class="card text-center">
+          <p class="font-display text-[18px] font-semibold">“{{ group.text }}”</p>
+        </div>
+        <div v-else class="rounded-xl border-2 border-dashed border-line px-3 py-2 text-center">
+          <p class="text-[13px] text-ink-soft">Sin foto ni frase todavía. Tocá para agregar.</p>
         </div>
       </NuxtLink>
       <ul v-if="moments.length" class="mt-3 space-y-2">
         <li v-for="m in moments" :key="m.id" class="flex items-start gap-2">
           <MemberAvatar :member="memberById.get(m.member_id!)" :size="30" />
-          <p class="card flex-1 p-2 text-[15px]"><strong>{{ memberById.get(m.member_id!)?.name }}:</strong> {{ m.text }}</p>
+          <p class="card flex-1 px-3 py-2 text-[14px]"><span class="block text-[12px] text-ink-soft">{{ memberById.get(m.member_id!)?.name }}</span>{{ m.text }}</p>
         </li>
       </ul>
     </article>

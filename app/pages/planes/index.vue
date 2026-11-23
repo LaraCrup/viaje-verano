@@ -28,7 +28,14 @@ const groupedIdeas = computed(() => {
     const m = byChapter.get(c)!
     m.set(g, [...(m.get(g) ?? []), p])
   }
-  return [...byChapter.entries()].map(([cid, groups]) => ({ chapter: chapterById.value.get(cid) ?? null, groups: [...groups.entries()] }))
+  // Capítulos en el orden del viaje; grupos por número ("Día 2" antes que "Día 10") y las sueltas al final.
+  const loose = 'Ideas sueltas'
+  return [...byChapter.entries()]
+    .map(([cid, groups]) => ({
+      chapter: chapterById.value.get(cid) ?? null,
+      groups: [...groups.entries()].sort(([a], [b]) => (a === loose ? 1 : b === loose ? -1 : a.localeCompare(b, 'es', { numeric: true }))),
+    }))
+    .sort((a, b) => (a.chapter?.sort ?? 99) - (b.chapter?.sort ?? 99))
 })
 const scheduled = computed(() => data.plans.filter(p => p.day_id).length)
 
@@ -61,6 +68,7 @@ async function saveIdea() {
   show(existing ? 'Idea guardada ✓' : 'Idea agregada ✓')
 }
 async function toggleIdeaDone(p: Plan) {
+  haptic('light')
   await saveRow('plans', { ...p, status: p.status === 'done' ? 'pending' : 'done' })
 }
 async function removeIdea(p: Plan) {
@@ -110,6 +118,7 @@ const polls = computed(() =>
 
 async function vote(poll: Poll, optionId: string, mine: string[]) {
   if (!me.value) return
+  haptic('light')
   const option_ids = toggleVote(mine, optionId, poll.multiple)
   const id = pairId(poll.id, me.value.id)
   const existing = data.poll_votes.find(v => v.id === id)
@@ -160,7 +169,7 @@ function pollFromGroup(label: string, items: Plan[]) {
 
 <template>
   <div>
-    <PageHeader title="Planes" sticker="lemon" />
+    <PageHeader title="Planes" sticker="pin" />
 
     <div class="mb-4 flex gap-2" role="tablist" aria-label="Planes">
       <button type="button" role="tab" class="chip" :aria-selected="tab === 'ideas'" :class="tab === 'ideas' ? 'is-on' : ''" @click="tab = 'ideas'">Ideas</button>
@@ -176,45 +185,45 @@ function pollFromGroup(label: string, items: Plan[]) {
         <button v-for="c in data.chapters" :key="c.id" type="button" role="radio" class="chip shrink-0" :aria-checked="chapterFilter === c.id" @click="chapterFilter = c.id">{{ c.emoji }} {{ c.name }}</button>
       </div>
 
-      <p v-if="scheduled" class="mb-3 text-[14px] text-ink-soft">{{ scheduled }} plan{{ scheduled > 1 ? 'es' : '' }} ya {{ scheduled > 1 ? 'están' : 'está' }} en el itinerario.</p>
+      <p v-if="scheduled" class="mb-1 px-1 text-[13px] text-ink-soft">{{ scheduled }} plan{{ scheduled > 1 ? 'es' : '' }} ya {{ scheduled > 1 ? 'están' : 'está' }} en el itinerario.</p>
 
-      <EmptyState v-if="!ideas.length" text="No hay ideas sueltas. ¡Sumá una!" sticker="lemon" />
+      <EmptyState v-if="!ideas.length" text="No hay ideas sueltas. ¡Sumá una!" sticker="pin" />
 
-      <section v-for="block in groupedIdeas" :key="block.chapter?.id ?? 'sin'" class="mb-6">
+      <section v-for="block in groupedIdeas" :key="block.chapter?.id ?? 'sin'">
         <h2 class="section-title" :style="{ color: inkFor(block.chapter?.color) }">{{ block.chapter?.emoji }} {{ block.chapter?.name ?? 'Sin ciudad' }}</h2>
-        <div v-for="[label, items] in block.groups" :key="label" class="card tape-left tape mb-4 p-3" :style="{ '--tape': block.chapter?.accent }">
-          <div class="mb-2 flex items-center justify-between gap-2">
-            <h3 class="font-sans text-[15px] font-extrabold uppercase tracking-wide text-ink-soft">{{ label }}</h3>
-            <button v-if="items.length > 1" type="button" class="btn btn-ghost min-h-10 px-1 text-[14px]" @click="pollFromGroup(label, items)">Votar 🗳️</button>
+        <div v-for="[label, items] in block.groups" :key="label" class="card mb-3 px-3 pb-1 pt-2">
+          <div class="flex min-h-10 items-center justify-between gap-2">
+            <h3 class="eyebrow font-sans">{{ label }}</h3>
+            <button v-if="items.length > 1" type="button" class="flex min-h-10 items-center px-1 text-[14px] font-semibold text-primary-dark" @click="pollFromGroup(label, items)">Votar 🗳️</button>
           </div>
-          <ul class="space-y-1">
-            <li v-for="p in items" :key="p.id" class="flex items-center gap-1">
+          <ul class="divide-y divide-line/70">
+            <li v-for="p in items" :key="p.id" class="flex items-center gap-1 py-1">
               <button type="button" class="tick" :aria-pressed="p.status === 'done'" :aria-label="`${p.title}: ${p.status === 'done' ? 'hecho' : 'pendiente'}`" @click="toggleIdeaDone(p)">
-                <NavIcon v-if="p.status === 'done'" name="check" :size="18" />
+                <Transition name="pop"><NavIcon v-if="p.status === 'done'" name="check" :size="18" /></Transition>
               </button>
               <button type="button" class="min-h-11 flex-1 px-1 text-left" @click="openIdea(p)">
-                <span class="font-bold" :class="p.status === 'done' ? 'line-through opacity-60' : ''">{{ p.title }}</span>
-                <span v-if="p.proposed_by" class="block text-[13px] text-ink-soft">propuso {{ memberById.get(p.proposed_by)?.name }}</span>
+                <span class="text-[15px]" :class="p.status === 'done' ? 'text-ink-soft line-through decoration-ink-soft/50' : 'font-semibold'">{{ p.title }}</span>
+                <span v-if="p.proposed_by" class="block text-[12px] text-ink-soft">propuso {{ memberById.get(p.proposed_by)?.name }}</span>
               </button>
-              <a :href="mapsFor(p)" target="_blank" rel="noopener" class="grid h-11 w-11 place-items-center rounded-full hover:bg-paper-2" :aria-label="`${p.title} en Google Maps`"><NavIcon name="pin" :size="20" /></a>
-              <button type="button" class="grid h-11 w-11 place-items-center rounded-full hover:bg-paper-2" :aria-label="`Pasar ${p.title} a un día`" @click="openMove(p)"><NavIcon name="map" :size="20" /></button>
+              <a :href="mapsFor(p)" target="_blank" rel="noopener" class="grid h-11 w-11 place-items-center rounded-full text-ink-soft hover:bg-paper-2" :aria-label="`${p.title} en Google Maps`"><NavIcon name="pin" :size="18" /></a>
+              <button type="button" class="grid h-11 w-11 place-items-center rounded-full text-ink-soft hover:bg-paper-2" :aria-label="`Pasar ${p.title} a un día`" @click="openMove(p)"><NavIcon name="map" :size="18" /></button>
             </li>
           </ul>
         </div>
       </section>
 
-      <button type="button" class="btn btn-primary btn-block" @click="openIdea()"><NavIcon name="plus" /> Sumar una idea</button>
+      <button type="button" class="btn btn-primary btn-block mt-6" @click="openIdea()"><NavIcon name="plus" :size="20" /> Sumar una idea</button>
     </template>
 
     <!-- VOTACIONES -->
     <template v-else>
       <EmptyState v-if="!polls.length" text="No hay votaciones. Armá una: “¿Mónaco o Saint-Tropez?”, “¿dónde cenamos?”." sticker="star" />
-      <section v-for="{ poll, options, t, mine, open } in polls" :key="poll.id" class="card tape mb-5">
+      <section v-for="{ poll, options, t, mine, open } in polls" :key="poll.id" class="card mb-4" :class="open ? '' : 'opacity-80'">
         <div class="flex items-start justify-between gap-2">
-          <h2 class="font-sans text-[17px] font-extrabold">{{ poll.question }}</h2>
+          <h2 class="font-sans text-[16px] font-bold leading-snug">{{ poll.question }}</h2>
           <span class="badge shrink-0" :class="open ? 'badge-ok' : 'bg-paper-2 text-ink-soft'">{{ open ? 'Abierta' : 'Cerrada' }}</span>
         </div>
-        <p class="mb-3 text-[13px] text-ink-soft">
+        <p class="mb-3 mt-0.5 text-[13px] text-ink-soft">
           {{ t.totalVoters }} de {{ data.members.length }} votaron{{ poll.multiple ? ' · se puede elegir varias' : '' }}
           <template v-if="poll.closes_at && open"> · cierra {{ new Date(poll.closes_at).toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) }}</template>
         </p>
@@ -230,27 +239,27 @@ function pollFromGroup(label: string, items: Plan[]) {
             >
               <span class="absolute inset-y-0 left-0 bg-primary-soft" :style="{ width: `${t.totalVoters ? Math.round((t.counts[o.id]! / t.totalVoters) * 100) : 0}%` }" aria-hidden="true" />
               <span class="relative flex items-center justify-between gap-2">
-                <span class="font-bold">
+                <span class="text-[15px] font-semibold">
                   <span v-if="!open && t.leaders.includes(o.id)" aria-hidden="true">🏆 </span>{{ o.label }}
-                  <span v-if="mine.includes(o.id)" class="text-[13px] text-primary-dark"> · tu voto</span>
+                  <span v-if="mine.includes(o.id)" class="block text-[12px] font-normal text-primary-dark">tu voto</span>
                 </span>
                 <span class="flex items-center gap-1">
                   <span class="flex -space-x-2" aria-hidden="true">
                     <MemberAvatar v-for="vid in t.voters[o.id]" :key="vid" :member="memberById.get(vid)" :size="24" />
                   </span>
-                  <span class="min-w-6 text-right font-extrabold tabular">{{ t.counts[o.id] }}</span>
+                  <span class="min-w-6 text-right text-[15px] font-bold tabular">{{ t.counts[o.id] }}</span>
                 </span>
               </span>
             </button>
           </li>
         </ul>
-        <div class="mt-3 flex flex-wrap gap-2">
-          <button type="button" class="btn btn-secondary min-h-11 flex-1 text-[14px]" @click="closePoll(poll)">{{ poll.closed ? 'Reabrir' : 'Cerrar votación' }}</button>
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+          <button type="button" class="min-h-11 px-1 text-[14px] font-semibold text-ink-soft underline decoration-line underline-offset-4" @click="closePoll(poll)">{{ poll.closed ? 'Reabrir' : 'Cerrar votación' }}</button>
           <button v-if="!open && t.leaders.length === 1 && options.find(o => o.id === t.leaders[0])?.plan_id" type="button" class="btn btn-primary min-h-11 flex-1 text-[14px]" @click="openMove(data.plans.find(p => p.id === options.find(o => o.id === t.leaders[0])!.plan_id)!)">Pasar la ganadora a un día</button>
-          <button type="button" class="btn btn-ghost min-h-11 px-2 text-[14px] text-bad" @click="removePoll(poll)">Borrar</button>
+          <button type="button" class="ml-auto min-h-11 px-1 text-[14px] font-semibold text-bad" @click="removePoll(poll)">Borrar</button>
         </div>
       </section>
-      <button type="button" class="btn btn-primary btn-block" @click="openPoll()"><NavIcon name="plus" /> Nueva votación</button>
+      <button type="button" class="btn btn-primary btn-block mt-6" @click="openPoll()"><NavIcon name="plus" :size="20" /> Nueva votación</button>
     </template>
 
     <!-- Hojas -->
@@ -271,7 +280,7 @@ function pollFromGroup(label: string, items: Plan[]) {
 
     <BottomSheet v-model:open="moveOpen" title="Pasar a un día">
       <form class="space-y-3" @submit.prevent="confirmMove">
-        <p class="font-bold">{{ moving?.title }}</p>
+        <p class="font-semibold">{{ moving?.title }}</p>
         <div class="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Día">
           <button v-for="d in moveDays" :key="d.id" type="button" role="radio" class="chip justify-center" :aria-checked="moveDate === d.date" @click="moveDate = d.date">{{ formatDayShort(d.date) }}</button>
         </div>
@@ -287,7 +296,7 @@ function pollFromGroup(label: string, items: Plan[]) {
           <input :id="`v-o-${i}`" v-model="pollForm.options[i]" class="input" maxlength="120">
         </div>
         <button type="button" class="btn btn-ghost px-0" @click="pollForm.options.push('')">+ Otra opción</button>
-        <label class="flex min-h-11 items-center gap-3 font-bold"><input v-model="pollForm.multiple" type="checkbox" class="h-6 w-6 accent-[#c62e65]"> Se puede elegir más de una</label>
+        <label class="flex min-h-11 items-center gap-3 font-semibold"><input v-model="pollForm.multiple" type="checkbox" class="h-6 w-6 accent-[#c62e65]"> Se puede elegir más de una</label>
         <div><label for="v-close" class="field-label">Cierra (opcional)</label><input id="v-close" v-model="pollForm.closes" type="datetime-local" class="input"></div>
         <button type="submit" class="btn btn-primary btn-block">Crear votación</button>
       </form>

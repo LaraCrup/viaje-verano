@@ -9,17 +9,37 @@ import { COUNTRY_FLAGS, COUNTRY_NAMES, topEntry, totalKm, visited } from '#share
 definePageMeta({ layout: false })
 
 const router = useRouter()
-const { data, base, memberById, placeById } = useTripData()
-const { stats } = useLedger()
+const { data, memberById, placeById } = useTripData()
+const { currencies, statsByCurrency } = useLedger()
+
+// Sin convertir: el total del grupo va por moneda ("1.200,00 EUR · 3.400,00 ILS").
+const groupTotals = computed(() =>
+  currencies.value
+    .map(c => ({ c, v: statsByCurrency.value[c]?.groupTotal ?? 0 }))
+    .filter(x => x.v > 0)
+    .map(x => formatMoney(x.v, x.c))
+    .join(' · '),
+)
+// Lo que no depende de la moneda: cuántas veces pagó cada una y la categoría con más gastos.
+const timesPaid = computed(() => {
+  const out: Record<string, number> = {}
+  for (const st of Object.values(statsByCurrency.value)) for (const [k, v] of Object.entries(st.timesPaid)) out[k] = (out[k] ?? 0) + v
+  return out
+})
+const catCount = computed(() => {
+  const out: Record<string, number> = {}
+  for (const e of data.expenses) if (e.split_mode !== 'personal') out[e.category] = (out[e.category] ?? 0) + 1
+  return out
+})
 const { show } = useToast()
 
 const places = computed(() => placeById.value as Map<string, any>)
 const v = computed(() => visited(data.days, places.value))
 const km = computed(() => totalKm(data.transports, places.value))
 const memberIds = computed(() => new Set(data.members.map(m => m.id)))
-const topCat = computed(() => topEntry(stats.value.byCategory))
-const topPayer = computed(() => topEntry(stats.value.timesPaid, memberIds.value))
-const rankingPaid = computed(() => ranked(stats.value.timesPaid).filter(([k]) => memberIds.value.has(k)))
+const topCat = computed(() => topEntry(catCount.value))
+const topPayer = computed(() => topEntry(timesPaid.value, memberIds.value))
+const rankingPaid = computed(() => ranked(timesPaid.value).filter(([k]) => memberIds.value.has(k)))
 const fiercest = computed(() => {
   const list = data.polls.map(poll => ({
     poll,
@@ -104,7 +124,7 @@ async function exportImage() {
   const rows: [string, string][] = [
     ['🌍', `${v.value.countries.length} países · ${v.value.cities.length} ciudades`],
     ['✈️', `${km.value.toLocaleString('es-AR')} km de traslados (aprox.)`],
-    ['💸', `${formatMoney(stats.value.groupTotal, base.value)} gastados en grupo`],
+    ['💸', `${groupTotals.value} gastados en grupo`],
   ]
   if (topCat.value) rows.push([category(topCat.value[0]).emoji, `Categoría top: ${category(topCat.value[0]).label}`])
   if (topPayer.value) rows.push(['🏆', `La que más veces pagó: ${memberById.value.get(topPayer.value[0])?.name}`])
@@ -192,14 +212,14 @@ async function exportImage() {
 
         <template v-else-if="current.id === 'gasto'">
           <Sticker name="heart" :size="80" animate />
-          <h1 class="text-[20px] text-white tabular">{{ formatMoney(stats.groupTotal, base) }}</h1>
+          <h1 class="text-[20px] text-white tabular">{{ groupTotals }}</h1>
           <p class="text-[16px] opacity-95">gastados entre todas, en {{ data.expenses.length }} gastos.</p>
         </template>
 
         <template v-else-if="current.id === 'categoria' && topCat">
           <p class="text-[64px]" aria-hidden="true">{{ category(topCat[0]).emoji }}</p>
           <h1 class="text-[20px] text-white">{{ category(topCat[0]).label }}</h1>
-          <p class="text-[16px] opacity-95">fue la categoría top: {{ formatMoney(topCat[1], base) }}.</p>
+          <p class="text-[16px] opacity-95">fue la categoría top: {{ topCat[1] }} gasto{{ topCat[1] === 1 ? '' : 's' }}.</p>
         </template>
 
         <template v-else-if="current.id === 'pagadora' && topPayer">

@@ -3,7 +3,6 @@ const route = useRoute()
 const tabs = [
   { to: '/gastos', label: 'Gastos' },
   { to: '/gastos/balances', label: 'Balances' },
-  { to: '/gastos/caja', label: 'Caja' },
   { to: '/gastos/numeros', label: 'Números' },
 ]
 </script>

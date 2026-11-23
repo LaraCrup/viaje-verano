@@ -46,8 +46,8 @@ async function saveMoment() {
     <PageHeader :title="formatDayLong(date)" back="/diario" />
     <EmptyState v-if="!day" text="Este día no es parte del viaje." />
     <template v-else>
-      <section class="mb-6">
-        <h2 class="section-title">📸 Foto del día</h2>
+      <section>
+        <h2 class="section-title mt-2">📸 Foto del día</h2>
         <PhotoView v-if="group?.photo_path" :path="group.photo_path" :alt="group.text ?? 'Foto del día'" :rot="-1" />
         <label class="btn btn-secondary btn-block mt-3 cursor-pointer">
           {{ group?.photo_path ? 'Cambiar foto' : 'Elegir la foto del día' }}
@@ -55,16 +55,16 @@ async function saveMoment() {
         </label>
       </section>
 
-      <form class="mb-6" @submit.prevent="savePhrase">
+      <form @submit.prevent="savePhrase">
         <label for="phrase" class="section-title">💬 La frase del día</label>
         <input id="phrase" v-model="phrase" class="input" maxlength="160" placeholder="Algo que alguien dijo y quedó…">
-        <button type="submit" class="btn btn-primary btn-block mt-2" :disabled="phrase === (group?.text ?? '')">Guardar frase</button>
+        <div class="mt-2 flex justify-end"><button type="submit" class="btn btn-primary min-h-11" :disabled="phrase === (group?.text ?? '')">Guardar frase</button></div>
       </form>
 
-      <form v-if="me" class="mb-6" @submit.prevent="saveMoment">
+      <form v-if="me" @submit.prevent="saveMoment">
         <label for="moment" class="section-title">✨ Tu momento del día</label>
         <textarea id="moment" v-model="moment" class="input" rows="3" maxlength="400" placeholder="Lo mejor de hoy para vos…" />
-        <button type="submit" class="btn btn-primary btn-block mt-2" :disabled="moment === (mine?.text ?? '')">Guardar mi momento</button>
+        <div class="mt-2 flex justify-end"><button type="submit" class="btn btn-primary min-h-11" :disabled="moment === (mine?.text ?? '')">Guardar mi momento</button></div>
       </form>
 
       <section v-if="others.length">
@@ -72,7 +72,7 @@ async function saveMoment() {
         <ul class="space-y-2">
           <li v-for="m in others" :key="m.id" class="flex items-start gap-2">
             <MemberAvatar :member="memberById.get(m.member_id!)" :size="32" />
-            <p class="card flex-1 p-3 text-[15px]"><strong>{{ memberById.get(m.member_id!)?.name }}:</strong> {{ m.text }}</p>
+            <p class="card flex-1 px-3 py-2 text-[14px]"><span class="block text-[12px] text-ink-soft">{{ memberById.get(m.member_id!)?.name }}</span>{{ m.text }}</p>
           </li>
         </ul>
       </section>

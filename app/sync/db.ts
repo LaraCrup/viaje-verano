@@ -10,7 +10,6 @@ export const SYNC_TABLES = [
   'places',
   'chapters',
   'days',
-  'pots',
   'expenses',
   'settlements',
   'transports',
@@ -96,7 +95,7 @@ export class TripDB extends Dexie {
       places: 'id, trip_id',
       chapters: 'id, trip_id',
       days: 'id, trip_id, date',
-      pots: 'id, trip_id',
+      pots: 'id, trip_id', // ya no se usa (la caja común se sacó); queda para no cambiar la versión de la base local
       expenses: 'id, trip_id, date',
       settlements: 'id, trip_id, date',
       transports: 'id, trip_id, depart_at',

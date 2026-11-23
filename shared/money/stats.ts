@@ -1,5 +1,6 @@
 /**
- * Estadísticas simples, todo en moneda base.
+ * Estadísticas simples. La app las calcula de a una moneda por vez (sin convertir):
+ * se le pasan solo los gastos de esa moneda y esa misma moneda como `base`.
  * Los gastos personales cuentan para lo de cada una, no para el total del grupo.
  */
 import type { Minor } from './currency'

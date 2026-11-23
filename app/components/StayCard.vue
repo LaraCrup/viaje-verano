@@ -14,12 +14,12 @@ const chapter = computed(() => (props.s.chapter_id ? chapterById.value.get(props
         <NavIcon name="bed" />
       </span>
       <div class="min-w-0 flex-1">
-        <div class="flex flex-wrap items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-ink-soft">
+        <div class="eyebrow flex flex-wrap items-center gap-2">
           <span>{{ chapter?.name ?? 'Alojamiento' }}<template v-if="s.kind"> · {{ s.kind }}</template></span>
           <span v-if="s.status === 'pending'" class="badge badge-pending normal-case tracking-normal">Pendiente</span>
         </div>
-        <div class="text-[16px] font-extrabold">{{ s.name }}</div>
-        <div class="text-[14px] text-ink-soft tabular">
+        <div class="text-[16px] font-bold">{{ s.name }}</div>
+        <div class="text-[13px] text-ink-soft tabular">
           <template v-if="s.check_in_date">{{ formatDayNumeric(s.check_in_date) }} → {{ s.check_out_date ? formatDayNumeric(s.check_out_date) : '¿?' }}</template>
           <template v-if="s.address"> · {{ s.address }}</template>
         </div>

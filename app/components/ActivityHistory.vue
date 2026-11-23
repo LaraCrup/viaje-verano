@@ -53,13 +53,13 @@ async function revertTo(entry: ActivityEntry) {
 
 <template>
   <div>
-    <button type="button" class="btn btn-ghost px-0" :aria-expanded="open" @click="load">
+    <button type="button" class="min-h-11 px-1 text-[14px] font-semibold text-ink-soft underline decoration-line underline-offset-4" :aria-expanded="open" @click="load">
       {{ open ? 'Ocultar historial' : 'Ver historial de cambios' }}
     </button>
     <p v-if="loading" class="text-[14px]">Cargando…</p>
     <ol v-if="open && entries" class="mt-2 space-y-2">
       <li v-for="en in entries" :key="en.id" class="rounded-xl bg-paper-2 p-3 text-[14px]">
-        <div class="font-bold text-ink">
+        <div class="font-semibold text-ink">
           {{ memberById.get(en.actor_member_id ?? '')?.name ?? 'Carga inicial' }} {{ ACTION[en.action] }}
           · {{ new Date(en.at).toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) }}
         </div>

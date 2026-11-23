@@ -65,12 +65,6 @@ export interface Day extends SyncMeta {
   night_override: string | null
 }
 
-export interface Pot extends SyncMeta {
-  name: string
-  currency: string
-  holder_member_id: string | null
-}
-
 export type CategoryIdStr = 'comida' | 'super' | 'alojamiento' | 'transporte' | 'salidas' | 'actividades' | 'compras' | 'otros'
 
 export interface Expense extends SyncMeta {
@@ -140,6 +134,8 @@ export interface Stay extends SyncMeta {
   check_out_date: string | null
   check_out_time: string | null
   booking_url: string | null
+  /** Link de Google Maps cargado a mano; si no hay, "Cómo llegar" busca la dirección. */
+  maps_url: string | null
   contact: string | null
   wifi_name: string | null
   wifi_pass: string | null

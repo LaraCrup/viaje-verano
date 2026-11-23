@@ -18,34 +18,44 @@ async function login(page: Page, who: string) {
 
 test.skip(!PIN, 'Falta TEST_PIN')
 
-test('planes: ideas de Niza, votar y pasar a un día', async ({ page }, info) => {
+test('planes: sumar ideas, votar y pasar a un día', async ({ page }, info) => {
   await login(page, 'Solcha')
   await page.goto('/planes')
-  await expect(page.getByText('Saint-Tropez')).toBeVisible()
-  await expect(page.getByText('Día 5')).toBeVisible()
+
+  // Sumar dos ideas al mismo grupo (la base arranca sin planes)
+  const grupo = `Día test ${Date.now()}`
+  const ideas = [`Mónaco ${Date.now()}`, `Menton ${Date.now()}`]
+  for (const titulo of ideas) {
+    await page.getByRole('button', { name: 'Sumar una idea' }).click()
+    await page.getByLabel('¿Qué?').fill(titulo)
+    await page.getByLabel('Ciudad / capítulo').selectOption({ label: 'Niza' })
+    await page.getByLabel(/Grupo/).fill(grupo)
+    await page.getByRole('button', { name: 'Guardar' }).click()
+    await expect(page.getByText(titulo)).toBeVisible()
+  }
   await shot(page, '10-planes', info.project.name)
 
-  // Votar entre las ideas del "Día 5" (Menton / Mónaco)
-  const card = page.locator('.card', { has: page.getByText('Día 5', { exact: true }) })
+  // Votar entre las ideas del grupo
+  const card = page.locator('.card', { has: page.getByText(grupo, { exact: true }) })
   await card.getByRole('button', { name: /Votar/ }).click()
-  const q = `Día 5 test ${Date.now()}`
+  const q = `${grupo} ¿cuál?`
   await page.getByLabel('Pregunta').fill(q)
   await page.getByRole('button', { name: 'Crear votación' }).click()
   const poll = page.locator('section.card', { hasText: q })
   await expect(poll).toBeVisible()
-  await poll.getByRole('button', { name: /Mónaco/ }).click()
+  await poll.getByRole('button', { name: new RegExp(ideas[0]!) }).click()
   await expect(poll.getByText('tu voto')).toBeVisible()
   await expect(poll.getByText(/1 de 6 votaron/)).toBeVisible()
   await shot(page, '11-votacion', info.project.name)
 
   // Pasar una idea a un día
   await page.getByRole('tab', { name: 'Ideas' }).click()
-  await page.getByRole('button', { name: 'Pasar Èze a un día' }).click()
+  await page.getByRole('button', { name: `Pasar ${ideas[1]} a un día` }).click()
   await page.getByRole('radio', { name: /8 ene/ }).click()
   await page.getByRole('button', { name: 'Listo' }).click()
   await expect(page.getByText(/quedó para el/)).toBeVisible()
   await page.goto('/itinerario/2027-01-08')
-  await expect(page.getByText('Èze')).toBeVisible()
+  await expect(page.getByText(ideas[1]!)).toBeVisible()
 })
 
 test('listas, info útil y diario', async ({ page }, info) => {

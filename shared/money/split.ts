@@ -92,7 +92,7 @@ export function computeSplit(input: SplitInput): Result<Record<string, Minor>> {
   }
 }
 
-/** Valida quién pagó (personas o caja común) y cuánto puso cada una. */
+/** Valida quién pagó y cuánto puso cada una. */
 export function validatePayers(total: Minor, payers: Record<string, Minor>, currency: string): Result<Record<string, Minor>> {
   const active = Object.entries(payers).filter(([, v]) => v !== 0)
   if (active.length === 0) return fail('Elegí quién pagó')

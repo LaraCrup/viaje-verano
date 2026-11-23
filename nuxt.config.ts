@@ -37,11 +37,14 @@ export default defineNuxtConfig({
   },
 
   app: {
+    // Transición entre pantallas (la dirección la decide middleware/page-transition.global.ts)
+    pageTransition: { name: 'page-fade', mode: 'out-in' },
     head: {
       htmlAttrs: { lang: 'es-AR' },
       title: APP_NAME,
       meta: [
-        { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
+        // maximum-scale=1: evita que iPhone haga zoom al tocar un campo (el zoom con dos dedos sigue andando)
+        { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover' },
         { name: 'theme-color', content: PAPER },
         { name: 'description', content: 'Itinerario, traslados, alojamientos y gastos compartidos del viaje.' },
         { name: 'apple-mobile-web-app-capable', content: 'yes' },
@@ -97,4 +100,5 @@ export default defineNuxtConfig({
   typescript: {
     strict: true,
   },
+
 })

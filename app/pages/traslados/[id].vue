@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Transport } from '#shared/types/domain'
-import { formatDayLong, formatTime, localParts, utcLabel, zonedToUtc } from '#shared/time/tz'
+import { formatDayShort, formatTime, localParts, utcLabel, zonedToUtc } from '#shared/time/tz'
 
 const route = useRoute()
 const router = useRouter()
@@ -106,55 +106,74 @@ function show2(at: string | null, tz: string | null) {
   if (!at) return null
   const d = new Date(at)
   const zone = tz ?? 'UTC'
-  return { day: formatDayLong(localParts(d, zone).date), time: formatTime(d, zone), utc: utcLabel(d, zone) }
+  return { day: formatDayShort(localParts(d, zone).date), time: formatTime(d, zone), utc: utcLabel(d, zone) }
 }
-const leave = computed(() => (t.value ? leaveTime(t.value, placeById.value) : null))
+const beThere = computed(() => (t.value ? beThereTime(t.value, placeById.value) : null))
 </script>
 
 <template>
   <div>
-    <PageHeader :title="isNew ? 'Nuevo traslado' : t?.code ? `${KIND_LABEL[t.kind]} ${t.code}` : 'Traslado'" back="/traslados" />
+    <PageHeader :title="isNew ? 'Nuevo traslado' : t?.code ? `${KIND_LABEL[t.kind]} ${t.code}` : 'Traslado'" back="/traslados">
+      <template v-if="t && !editing" #right>
+        <button type="button" class="flex min-h-11 items-center gap-1 rounded-full px-3 text-[14px] font-semibold text-primary-dark hover:bg-paper-2" @click="fill(t); editing = true"><NavIcon name="edit" :size="16" /> Editar</button>
+      </template>
+    </PageHeader>
 
     <EmptyState v-if="!isNew && !t && data.loaded" text="No encontramos este traslado." />
 
     <!-- Ver -->
     <template v-else-if="t && !editing">
       <section class="card tape">
-        <p class="text-[18px] font-extrabold">{{ transportTitle(t) }}</p>
-        <p v-if="t.carrier" class="text-[15px] text-ink-soft">{{ t.carrier }}</p>
-        <span v-if="t.status === 'pending'" class="badge badge-pending mt-1">Pendiente</span>
-        <dl class="mt-3 grid grid-cols-1 gap-3 text-[15px]">
+        <p class="eyebrow flex flex-wrap items-center gap-2">
+          {{ KIND_LABEL[t.kind] }}<template v-if="t.carrier"> · {{ t.carrier }}</template>
+          <span v-if="t.status === 'pending'" class="badge badge-pending normal-case tracking-normal">Pendiente</span>
+        </p>
+        <p class="mt-0.5 text-[17px] font-bold leading-snug">{{ transportTitle(t) }}</p>
+
+        <dl class="mt-4 grid grid-cols-2 gap-3 border-t border-dashed border-line pt-3">
           <div>
-            <dt class="text-[13px] font-bold text-ink-soft">Sale</dt>
-            <dd v-if="show2(t.depart_at, t.depart_tz)" class="font-extrabold">{{ show2(t.depart_at, t.depart_tz)!.day }} · <span class="tabular">{{ show2(t.depart_at, t.depart_tz)!.time }}</span> <span class="text-[13px] text-ink-soft">({{ show2(t.depart_at, t.depart_tz)!.utc }})</span></dd>
-            <dd v-else class="font-bold text-warn">Pendiente</dd>
+            <dt class="text-[12px] text-ink-soft">Sale</dt>
+            <template v-if="show2(t.depart_at, t.depart_tz)">
+              <dd class="text-[18px] font-bold tabular">{{ show2(t.depart_at, t.depart_tz)!.time }}</dd>
+              <dd class="text-[13px] text-ink-soft">{{ show2(t.depart_at, t.depart_tz)!.day }} · {{ show2(t.depart_at, t.depart_tz)!.utc }}</dd>
+            </template>
+            <dd v-else class="text-[15px] font-semibold text-warn">Pendiente</dd>
           </div>
           <div>
-            <dt class="text-[13px] font-bold text-ink-soft">Llega</dt>
-            <dd v-if="show2(t.arrive_at, t.arrive_tz)" class="font-extrabold">{{ show2(t.arrive_at, t.arrive_tz)!.day }} · <span class="tabular">{{ show2(t.arrive_at, t.arrive_tz)!.time }}</span> <span class="text-[13px] text-ink-soft">({{ show2(t.arrive_at, t.arrive_tz)!.utc }})</span></dd>
-            <dd v-else class="font-bold text-warn">Pendiente</dd>
-          </div>
-          <div v-if="leave">
-            <dt class="text-[13px] font-bold text-ink-soft">Salir hacia allá (estimado)</dt>
-            <dd class="font-extrabold tabular">{{ formatTime(leave, t.depart_tz ?? 'UTC') }}</dd>
+            <dt class="text-[12px] text-ink-soft">Llega</dt>
+            <template v-if="show2(t.arrive_at, t.arrive_tz)">
+              <dd class="text-[18px] font-bold tabular">{{ show2(t.arrive_at, t.arrive_tz)!.time }}</dd>
+              <dd class="text-[13px] text-ink-soft">{{ show2(t.arrive_at, t.arrive_tz)!.day }} · {{ show2(t.arrive_at, t.arrive_tz)!.utc }}</dd>
+            </template>
+            <dd v-else class="text-[15px] font-semibold text-warn">Pendiente</dd>
           </div>
         </dl>
+        <p v-if="beThere" class="mt-3 rounded-xl bg-primary-soft px-3 py-2 text-[14px] text-primary-dark">
+          Estar a las <strong class="tabular">{{ formatTime(beThere.at, t.depart_tz ?? 'UTC') }}</strong>
+          <span class="text-[13px]">({{ formatBuffer(beThere.bufferMin) }} antes)</span>
+        </p>
       </section>
 
-      <section class="card mt-4">
+      <h2 class="section-title">Datos</h2>
+      <section class="card py-1">
         <CopyValue label="Código de reserva" :value="t.booking_ref" />
         <CopyValue label="Terminal" :value="t.terminal" />
-        <div class="py-2 text-[15px]"><span class="font-bold text-ink-soft">Lo compró:</span> {{ t.purchased_by ? memberById.get(t.purchased_by)?.name : '—' }}</div>
-        <NuxtLink v-if="t.expense_id" :to="`/gastos/${t.expense_id}`" class="link text-[15px]">Ver el gasto</NuxtLink>
-        <p v-if="t.notes" class="mt-2 whitespace-pre-line text-[15px]">{{ t.notes }}</p>
+        <div class="flex min-h-11 flex-col justify-center border-b border-dashed border-line py-1 last:border-0">
+          <span class="text-[12px] text-ink-soft">Lo compró</span>
+          <span class="text-[15px] font-semibold">{{ t.purchased_by ? memberById.get(t.purchased_by)?.name : '—' }}</span>
+        </div>
+        <div v-if="t.notes" class="py-2">
+          <span class="text-[12px] text-ink-soft">Notas</span>
+          <p class="whitespace-pre-line text-[14px]">{{ t.notes }}</p>
+        </div>
       </section>
-
-      <button type="button" class="btn btn-secondary btn-block mt-4" @click="fill(t); editing = true"><NavIcon name="edit" :size="20" /> Editar</button>
+      <NuxtLink v-if="t.expense_id" :to="`/gastos/${t.expense_id}`" class="link mt-2 inline-block px-1 text-[14px]">Ver el gasto</NuxtLink>
 
       <AttachmentList owner-type="transport" :owner-id="t.id" title="Pasajes y tarjetas de embarque" />
 
-      <ActivityHistory class="mt-4" entity="transports" :entity-id="t.id" />
-      <button type="button" class="btn btn-secondary btn-block mt-2 text-bad" @click="remove">Borrar traslado</button>
+      <div class="mt-8 flex justify-end border-t border-dashed border-line pt-2">
+        <button type="button" class="min-h-11 px-1 text-[14px] font-semibold text-bad" @click="remove">Borrar traslado</button>
+      </div>
     </template>
 
     <!-- Editar / crear -->
@@ -172,15 +191,15 @@ const leave = computed(() => (t.value ? leaveTime(t.value, placeById.value) : nu
       </div>
 
       <fieldset class="card space-y-3 p-3">
-        <legend class="px-1 font-extrabold">Salida</legend>
+        <legend class="px-1 font-bold">Salida</legend>
         <div><label for="t-orig" class="field-label">Desde</label><input id="t-orig" v-model="form.origin_label" class="input" placeholder="Roma (FCO)"></div>
         <div>
           <label for="t-orig-place" class="field-label">Ciudad</label>
           <select id="t-orig-place" v-model="form.origin_place_id" class="input"><option value="">—</option><option v-for="p in data.places" :key="p.id" :value="p.id">{{ p.name }}</option></select>
         </div>
         <div class="grid grid-cols-2 gap-2">
-          <div><label for="t-dd" class="field-label">Fecha</label><input id="t-dd" v-model="form.depart_date" type="date" class="input"></div>
-          <div><label for="t-dt" class="field-label">Hora local</label><input id="t-dt" v-model="form.depart_time" type="time" class="input"></div>
+          <div class="min-w-0"><label for="t-dd" class="field-label">Fecha</label><input id="t-dd" v-model="form.depart_date" type="date" class="input"></div>
+          <div class="min-w-0"><label for="t-dt" class="field-label">Hora local</label><input id="t-dt" v-model="form.depart_time" type="time" class="input"></div>
         </div>
         <div>
           <label for="t-dtz" class="field-label">Zona horaria</label>
@@ -189,15 +208,15 @@ const leave = computed(() => (t.value ? leaveTime(t.value, placeById.value) : nu
       </fieldset>
 
       <fieldset class="card space-y-3 p-3">
-        <legend class="px-1 font-extrabold">Llegada</legend>
+        <legend class="px-1 font-bold">Llegada</legend>
         <div><label for="t-dest" class="field-label">Hasta</label><input id="t-dest" v-model="form.dest_label" class="input" placeholder="Buenos Aires (EZE)"></div>
         <div>
           <label for="t-dest-place" class="field-label">Ciudad</label>
           <select id="t-dest-place" v-model="form.dest_place_id" class="input"><option value="">—</option><option v-for="p in data.places" :key="p.id" :value="p.id">{{ p.name }}</option></select>
         </div>
         <div class="grid grid-cols-2 gap-2">
-          <div><label for="t-ad" class="field-label">Fecha</label><input id="t-ad" v-model="form.arrive_date" type="date" class="input"></div>
-          <div><label for="t-at" class="field-label">Hora local</label><input id="t-at" v-model="form.arrive_time" type="time" class="input"></div>
+          <div class="min-w-0"><label for="t-ad" class="field-label">Fecha</label><input id="t-ad" v-model="form.arrive_date" type="date" class="input"></div>
+          <div class="min-w-0"><label for="t-at" class="field-label">Hora local</label><input id="t-at" v-model="form.arrive_time" type="time" class="input"></div>
         </div>
         <div>
           <label for="t-atz" class="field-label">Zona horaria</label>
@@ -213,13 +232,14 @@ const leave = computed(() => (t.value ? leaveTime(t.value, placeById.value) : nu
         <label for="t-buyer" class="field-label">¿Quién lo compró?</label>
         <select id="t-buyer" v-model="form.purchased_by" class="input"><option value="">—</option><option v-for="m in data.members" :key="m.id" :value="m.id">{{ m.name }}</option></select>
       </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div><label for="t-buf" class="field-label">Llegar antes (min)</label><input id="t-buf" v-model="form.leave_buffer_min" type="number" min="0" class="input" placeholder="auto"></div>
-        <div><label for="t-trav" class="field-label">Viaje hasta ahí (min)</label><input id="t-trav" v-model="form.travel_to_min" type="number" min="0" class="input" placeholder="0"></div>
+      <div>
+        <label for="t-buf" class="field-label">¿Cuánto antes hay que estar? (min)</label>
+        <input id="t-buf" v-model="form.leave_buffer_min" type="number" min="0" class="input" placeholder="Automático">
+        <p class="mt-1 text-[13px] text-ink-soft">Si lo dejás vacío: vuelos 3 h (2 h dentro de Europa), micros 45 min, trenes 30 min.</p>
       </div>
       <div><label for="t-notes" class="field-label">Notas</label><textarea id="t-notes" v-model="form.notes" class="input" rows="3" /></div>
 
-      <p v-if="error" class="rounded-xl border-2 border-bad bg-bad-soft p-3 font-bold text-bad" role="alert">{{ error }}</p>
+      <p v-if="error" class="rounded-xl border-2 border-bad bg-bad-soft p-3 font-semibold text-bad" role="alert">{{ error }}</p>
       <div class="flex gap-2">
         <button v-if="!isNew" type="button" class="btn btn-secondary flex-1" @click="editing = false">Cancelar</button>
         <button type="submit" class="btn btn-primary flex-1" :disabled="!!error">Guardar</button>
