@@ -40,4 +40,13 @@ describe('alcance de cada etapa', () => {
     expect(expenseVisible({ ...roma, shares: { lara: 50, meli: 50 } }, visible, 'meli')).toBe(true)
     expect(expenseVisible({ ...roma, chapter_id: null }, visible, 'meli')).toBe(true)
   })
+
+  it('un gasto personal solo lo ve quien está en él', () => {
+    const visible = visibleChapterIds(CHAPTERS, 'lara')
+    const zara = { chapter_id: 'madrid', split_mode: 'personal', payers: { meli: 4590 }, shares: { meli: 4590 } }
+    expect(expenseVisible(zara, visible, 'meli')).toBe(true)
+    expect(expenseVisible(zara, visible, 'lara')).toBe(false)
+    // Si otra lo pagó por ella, lo ven las dos (hay una deuda en el medio)
+    expect(expenseVisible({ ...zara, payers: { lara: 4590 } }, visible, 'lara')).toBe(true)
+  })
 })

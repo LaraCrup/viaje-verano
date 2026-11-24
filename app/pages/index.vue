@@ -49,7 +49,6 @@ const dayTitle = computed(() => {
 })
 
 const stickerName = computed(() => ({ Israel: 'wave', Madrid: 'fan', Niza: 'lemon', Roma: 'pizza' } as Record<string, string>)[chapter.value?.name ?? ''] ?? 'plane')
-const showBaTime = computed(() => localTz.value !== TZ.BUENOS_AIRES)
 
 /** Plan en curso (empezó hace menos de 90 min) o el próximo pendiente con hora. */
 const nowHm = computed(() => formatTime(now.value, localTz.value))
@@ -118,21 +117,20 @@ const greeting = computed(() => {
         <Sticker :name="phase?.phase === 'during' ? stickerName : 'plane'" :size="44" :rot="8" />
       </div>
 
-      <dl class="mt-4 grid grid-cols-3 gap-2 border-t border-dashed border-line pt-3">
+      <!-- La hora local ya la tiene cada una en el celular: acá va la de Buenos Aires, para saber qué hora es allá -->
+      <dl class="mt-4 grid grid-cols-2 gap-2 border-t border-dashed border-line pt-3">
         <div>
-          <dt class="text-[12px] text-ink-soft">{{ showBaTime ? 'Hora acá' : 'Hora' }}</dt>
-          <dd class="text-[16px] font-bold tabular">{{ formatTime(now, localTz) }}</dd>
+          <dt class="text-[12px] text-ink-soft">Hora en Buenos Aires</dt>
+          <dd class="text-[16px] font-bold tabular">{{ formatTime(now, TZ.BUENOS_AIRES) }}</dd>
         </div>
-        <div v-if="showBaTime">
-          <dt class="text-[12px] text-ink-soft">Buenos Aires</dt>
-          <dd class="text-[16px] font-semibold tabular text-ink-soft">{{ formatTime(now, TZ.BUENOS_AIRES) }}</dd>
-        </div>
-        <div :class="showBaTime ? '' : 'col-span-2'">
-          <dt class="text-[12px] text-ink-soft">Clima<template v-if="!showBaTime && place"> en {{ place.name }}</template></dt>
-          <dd v-if="weather" class="text-[16px] font-bold tabular" :title="weatherInfo(weather.current.code).label">
-            {{ weatherInfo(weather.current.code).emoji }} {{ weather.current.temp }}°
-          </dd>
-          <dd v-if="weather?.daily[0]" class="text-[12px] text-ink-soft tabular">{{ weather.daily[0].min }}° / {{ weather.daily[0].max }}°</dd>
+        <div>
+          <dt class="text-[12px] text-ink-soft">Clima<template v-if="place"> en {{ place.name }}</template></dt>
+          <template v-if="weather">
+            <dd class="text-[16px] font-bold tabular" :title="weatherInfo(weather.current.code).label">
+              {{ weatherInfo(weather.current.code).emoji }} {{ weather.current.temp }}°
+              <span v-if="weather.daily[0]" class="text-[12px] font-normal text-ink-soft">{{ weather.daily[0].min }}° / {{ weather.daily[0].max }}°</span>
+            </dd>
+          </template>
           <dd v-else class="text-[13px] text-ink-soft">Sin datos todavía</dd>
         </div>
       </dl>

@@ -5,7 +5,7 @@ const items = [
   { to: '/itinerario', label: 'Itinerario', icon: 'map', match: (p: string) => p.startsWith('/itinerario') || p.startsWith('/traslados') || p.startsWith('/alojamientos') },
   { to: '/gastos', label: 'Gastos', icon: 'wallet', match: (p: string) => p.startsWith('/gastos') },
   { to: '/planes', label: 'Planes', icon: 'star', match: (p: string) => p.startsWith('/planes') },
-  { to: '/mas', label: 'Más', icon: 'dots', match: (p: string) => p.startsWith('/mas') || p.startsWith('/diario') || p.startsWith('/listas') || p.startsWith('/info') || p.startsWith('/wrapped') },
+  { to: '/mas', label: 'Más', icon: 'dots', match: (p: string) => p.startsWith('/mas') || p.startsWith('/diario') || p.startsWith('/listas') || p.startsWith('/info') || p.startsWith('/seguros') || p.startsWith('/wrapped') },
 ]
 // La burbujita rosa se desliza hasta la pestaña activa
 const activeIndex = computed(() => Math.max(0, items.findIndex(it => it.match(route.path))))

@@ -161,7 +161,7 @@ export interface Plan extends SyncMeta {
 }
 
 export interface Attachment extends SyncMeta {
-  owner_type: 'transport' | 'stay' | 'expense' | 'journal' | 'other'
+  owner_type: 'transport' | 'stay' | 'expense' | 'journal' | 'other' | 'insurance'
   owner_id: string
   member_id: string | null
   storage_path: string

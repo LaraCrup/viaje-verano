@@ -74,6 +74,7 @@ function install() {
         { to: '/diario', label: 'Diario del viaje', e: '📔' },
         { to: '/listas', label: 'Valija y listas', e: '🧳' },
         { to: '/info', label: 'Info útil por país', e: '🧭' },
+        { to: '/seguros', label: 'Seguro de viaje', e: '🛡️' },
         { to: '/alojamientos', label: 'Alojamientos', e: '🛏️' },
         { to: '/traslados', label: 'Traslados', e: '✈️' },
         { to: '/wrapped', label: 'Wrapped del viaje', e: '✨' },

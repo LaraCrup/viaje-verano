@@ -43,12 +43,17 @@ export function personalWindow(
   }
 }
 
-/** Un gasto se ve si es de un capítulo visible, no tiene capítulo, o la integrante participa (pagó o le toca parte). */
+/**
+ * Un gasto se ve si la integrante participa (pagó o le toca parte). Si no participa:
+ * - un gasto personal de otra no se ve nunca (es de ella);
+ * - el resto se ve si es de un capítulo visible o no tiene capítulo.
+ */
 export function expenseVisible(
-  e: { chapter_id: string | null; payers: Record<string, number>; shares: Record<string, number> },
+  e: { chapter_id: string | null; split_mode?: string; payers: Record<string, number>; shares: Record<string, number> },
   visible: Set<string>,
   memberId: string | null,
 ): boolean {
-  if (!e.chapter_id || visible.has(e.chapter_id)) return true
-  return !!memberId && (memberId in e.payers || memberId in e.shares)
+  if (memberId && (memberId in e.payers || memberId in e.shares)) return true
+  if (e.split_mode === 'personal') return !memberId
+  return !e.chapter_id || visible.has(e.chapter_id)
 }
