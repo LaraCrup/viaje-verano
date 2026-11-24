@@ -73,6 +73,12 @@ export default defineNuxtConfig({
       start_url: '/',
       scope: '/',
       display: 'standalone',
+      // En Android, la app aparece al tocar "Compartir" en TikTok / Instagram y abre Planes → Guardados
+      share_target: {
+        action: '/planes',
+        method: 'GET',
+        params: { title: 'title', text: 'text', url: 'url' },
+      },
       orientation: 'portrait',
       background_color: PAPER,
       theme_color: PAPER,

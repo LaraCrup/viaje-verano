@@ -222,6 +222,20 @@ export interface CountryInfo extends SyncMeta {
   sort: number
 }
 
+export type VideoPlatform = 'tiktok' | 'instagram' | 'youtube' | 'otro'
+
+/** Video de TikTok / Instagram / YouTube con un lugar para ir. */
+export interface Video extends SyncMeta {
+  url: string
+  platform: VideoPlatform
+  title: string | null
+  chapter_id: string | null
+  /** Quién lo subió */
+  member_id: string | null
+  /** Si se pasó a ideas, la idea que se creó */
+  plan_id: string | null
+}
+
 export interface JournalEntry extends SyncMeta {
   date: string
   member_id: string | null

@@ -33,6 +33,7 @@ export function useScope() {
   const polls = computed(() => data.polls.filter(p => chapterOk(p.chapter_id)))
   const expenses = computed(() => data.expenses.filter(e => expenseVisible(e, visibleIds.value, meId.value)))
   const journal = computed(() => data.journal_entries.filter(j => dateOk(j.date)))
+  const videos = computed(() => data.videos.filter(v => chapterOk(v.chapter_id)))
 
   /** Países que le tocan (por las ciudades de sus días y capítulos), para Info útil. */
   const countries = computed(() => {
@@ -60,5 +61,5 @@ export function useScope() {
     return membersOfChapter(chapterForDate(date)?.id)
   }
 
-  return { chapters, days, stays, transports, plans, polls, expenses, journal, countries, window, chapterOk, dateOk, membersOfChapter, membersOnDate }
+  return { chapters, days, stays, transports, plans, polls, expenses, journal, videos, countries, window, chapterOk, dateOk, membersOfChapter, membersOnDate }
 }

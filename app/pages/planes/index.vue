@@ -12,9 +12,13 @@ const scope = useScope()
 const { now, today } = useNow()
 const { show } = useToast()
 
-const tab = computed<'ideas' | 'votar'>({
-  get: () => (route.query.tab === 'votar' ? 'votar' : 'ideas'),
-  set: v => router.replace({ query: v === 'votar' ? { tab: 'votar' } : {} }),
+const tab = computed<'ideas' | 'votar' | 'guardados'>({
+  get: () => {
+    // Un link compartido desde TikTok / Instagram (Android) llega como ?url= o ?text=
+    if (route.query.tab === 'guardados' || route.query.url || route.query.text) return 'guardados'
+    return route.query.tab === 'votar' ? 'votar' : 'ideas'
+  },
+  set: v => router.replace({ query: v === 'ideas' ? {} : { tab: v } }),
 })
 
 // ---------- Ideas ----------
@@ -182,6 +186,9 @@ function pollFromGroup(label: string, items: Plan[]) {
       <button type="button" role="tab" class="chip" :aria-selected="tab === 'votar'" :class="tab === 'votar' ? 'is-on' : ''" @click="tab = 'votar'">
         Votaciones<template v-if="polls.filter(p => p.open && !p.mine.length).length"> ({{ polls.filter(p => p.open && !p.mine.length).length }})</template>
       </button>
+      <button type="button" role="tab" class="chip" :aria-selected="tab === 'guardados'" :class="tab === 'guardados' ? 'is-on' : ''" @click="tab = 'guardados'">
+        Guardados<template v-if="scope.videos.value.length"> ({{ scope.videos.value.length }})</template>
+      </button>
     </div>
 
     <!-- IDEAS -->
@@ -222,7 +229,7 @@ function pollFromGroup(label: string, items: Plan[]) {
     </template>
 
     <!-- VOTACIONES -->
-    <template v-else>
+    <template v-else-if="tab === 'votar'">
       <EmptyState v-if="!polls.length" text="No hay votaciones. Armá una: “¿Mónaco o Saint-Tropez?”, “¿dónde cenamos?”." sticker="star" />
       <section v-for="{ poll, options, t, mine, voters, open } in polls" :key="poll.id" class="card mb-4" :class="open ? '' : 'opacity-80'">
         <div class="flex items-start justify-between gap-2">
@@ -267,6 +274,9 @@ function pollFromGroup(label: string, items: Plan[]) {
       </section>
       <button type="button" class="btn btn-primary btn-block mt-6" @click="openPoll()"><NavIcon name="plus" :size="20" /> Nueva votación</button>
     </template>
+
+    <!-- GUARDADOS (TikToks, Reels, publicaciones, links) -->
+    <GuardadosTab v-else />
 
     <!-- Hojas -->
     <BottomSheet v-model:open="ideaOpen" :title="ideaForm.id ? 'Editar idea' : 'Nueva idea'">

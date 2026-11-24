@@ -4,7 +4,7 @@
  */
 import { liveQuery, type Subscription } from 'dexie'
 import type {
-  Attachment, Chapter, ChecklistItem, CountryInfo, Day, Expense, JournalEntry, Member, Place, Plan, Poll, PollOption, PollVote,
+  Attachment, Chapter, ChecklistItem, CountryInfo, Day, Expense, JournalEntry, Member, Video, Place, Plan, Poll, PollOption, PollVote,
   Settlement, Stay, Transport, Trip,
 } from '#shared/types/domain'
 import { uuid } from '~/lib/supabase'
@@ -30,6 +30,7 @@ export const tripData = reactive({
   checklist_items: [] as ChecklistItem[],
   country_info: [] as CountryInfo[],
   journal_entries: [] as JournalEntry[],
+  videos: [] as Video[],
 })
 
 type ListKey = Exclude<keyof typeof tripData, 'loaded' | 'trip'>
@@ -48,6 +49,7 @@ const SORTS: Partial<Record<ListKey, (a: any, b: any) => number>> = {
   checklist_items: (a, b) => a.sort - b.sort || ((a.created_at ?? '') < (b.created_at ?? '') ? -1 : 1),
   country_info: (a, b) => a.sort - b.sort,
   journal_entries: (a, b) => (a.date < b.date ? 1 : -1),
+  videos: (a, b) => ((a.created_at ?? a.client_updated_at ?? '') < (b.created_at ?? b.client_updated_at ?? '') ? 1 : -1),
 }
 
 let subs: Subscription[] = []
@@ -61,7 +63,7 @@ export function loadTripData(tripId: string) {
   const db = getDb()
   const lists: ListKey[] = [
     'members', 'places', 'chapters', 'days', 'expenses', 'settlements', 'transports', 'stays', 'plans', 'attachments',
-    'polls', 'poll_options', 'poll_votes', 'checklist_items', 'country_info', 'journal_entries',
+    'polls', 'poll_options', 'poll_votes', 'checklist_items', 'country_info', 'journal_entries', 'videos',
   ]
   let pending = lists.length + 1
   const done = () => {

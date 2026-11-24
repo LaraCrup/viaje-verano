@@ -23,6 +23,8 @@ export const SYNC_TABLES = [
   'checklist_items',
   'country_info',
   'journal_entries',
+  // V3
+  'videos',
 ] as const
 
 export type SyncTable = (typeof SYNC_TABLES)[number]
@@ -86,6 +88,7 @@ export class TripDB extends Dexie {
   failed!: Table<FailedItem, number>
   meta!: Table<MetaRow, string>
   files!: Table<FileRow, string>
+  videos!: Table<AnyRow, string>
 
   constructor(name = 'viaje-2026') {
     super(name)
@@ -112,6 +115,10 @@ export class TripDB extends Dexie {
       failed: '++seq',
       meta: 'key',
       files: 'path',
+    })
+    // V3: videos de TikTok / Instagram (Dexie suma la tabla sin tocar lo que ya hay en el celular)
+    this.version(2).stores({
+      videos: 'id, trip_id',
     })
   }
 
