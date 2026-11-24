@@ -109,7 +109,7 @@ export function formatMoney(minor: Minor, currency: string, opts: { signed?: boo
   return fmt.format(minor / 10 ** digits)
 }
 
-/** Monto sin símbolo, para inputs y CSV: "12,50". */
+/** Monto sin símbolo, para inputs: "12,50". */
 export function formatPlain(minor: Minor, currency: string): string {
   const digits = minorDigits(currency)
   const sign = minor < 0 ? '-' : ''

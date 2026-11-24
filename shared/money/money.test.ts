@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { allocate, tieBreakOrder } from './allocate'
 import { balancesByCurrency, balancesInBase, isAllSettled, type LedgerExpense, type LedgerSettlement } from './balances'
 import { formatMoney, formatPlain, minorDigits, parseAmount } from './currency'
-import { toCsv } from './csv'
 import { convertMinor, divRound, invertRate, parseRate, rateFromNumber } from './fx'
 import { simplifyByCurrency, simplifyDebts } from './simplify'
 import { computeExpense, computeSplit, parsePercent, validatePayers } from './split'
@@ -324,7 +323,7 @@ describe('simplificar deudas', () => {
   })
 })
 
-describe('estadísticas y CSV', () => {
+describe('estadísticas', () => {
   it('total del grupo y lo que consumió cada una sin personales; lo gastado en total con personales', () => {
     const e = (id: string, cat: string, amount: number, personal = false): StatsExpense => ({
       ...expense(id, 'USD', amount, { lara: amount }, personal ? { lara: amount } : { lara: amount / 2, juli: amount / 2 }),
@@ -341,10 +340,4 @@ describe('estadísticas y CSV', () => {
     expect(s.timesPaid.lara).toBe(2)
   })
 
-  it('CSV con ; escapado y BOM', () => {
-    const csv = toCsv([['Descripción', 'Monto'], ['Cena; vino', '12,50'], ['Dijo "hola"', null]])
-    expect(csv.startsWith('﻿')).toBe(true)
-    expect(csv).toContain('"Cena; vino";12,50')
-    expect(csv).toContain('"Dijo ""hola""";')
-  })
 })
