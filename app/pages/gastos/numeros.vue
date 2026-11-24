@@ -13,7 +13,7 @@ const scope = useScope()
 // Moneda que se está mirando: arranca en la más usada.
 const picked = ref('')
 const cur = computed(() => (currencies.value.includes(picked.value) ? picked.value : currencies.value[0] ?? ''))
-const empty = { groupTotal: 0, byMember: {}, byCategory: {}, byPlace: {}, byChapter: {}, timesPaid: {} }
+const empty = { groupTotal: 0, byMember: {}, byMemberWithPersonal: {}, byCategory: {}, byPlace: {}, byChapter: {}, timesPaid: {} }
 const stats = computed(() => statsByCurrency.value[cur.value] ?? empty)
 const count = computed(() => scope.expenses.value.filter(e => e.currency === cur.value).length)
 

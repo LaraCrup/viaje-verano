@@ -325,7 +325,7 @@ describe('simplificar deudas', () => {
 })
 
 describe('estadísticas y CSV', () => {
-  it('total del grupo sin personales, por persona con personales', () => {
+  it('total del grupo y lo que consumió cada una sin personales; lo gastado en total con personales', () => {
     const e = (id: string, cat: string, amount: number, personal = false): StatsExpense => ({
       ...expense(id, 'USD', amount, { lara: amount }, personal ? { lara: amount } : { lara: amount / 2, juli: amount / 2 }),
       category: cat,
@@ -336,7 +336,8 @@ describe('estadísticas y CSV', () => {
     const s = tripStats([e('a', 'comida', 1000), e('b', 'comida', 2000), e('c', 'compras', 500, true)], 'USD')
     expect(s.groupTotal).toBe(3000)
     expect(s.byCategory).toEqual({ comida: 3000 })
-    expect(s.byMember).toEqual({ lara: 2000, juli: 1500 })
+    expect(s.byMember).toEqual({ lara: 1500, juli: 1500 })
+    expect(s.byMemberWithPersonal).toEqual({ lara: 2000, juli: 1500 })
     expect(s.timesPaid.lara).toBe(2)
   })
 

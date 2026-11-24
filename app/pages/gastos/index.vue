@@ -64,7 +64,7 @@ const mySpent = computed(() => {
   const id = me.value?.id
   if (!id) return ''
   return currencies.value
-    .map(c => ({ c, v: statsByCurrency.value[c]?.byMember[id] ?? 0 }))
+    .map(c => ({ c, v: statsByCurrency.value[c]?.byMemberWithPersonal[id] ?? 0 }))
     .filter(x => x.v > 0)
     .map(x => formatMoney(x.v, x.c))
     .join(' · ')
